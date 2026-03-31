@@ -1,0 +1,46 @@
+version: "3.8"
+
+# Q-GST Engine backend services for local development
+# Start with: docker compose -f docker-compose.dev.yml up -d
+
+services:
+  # Q-GST Core Runtime — real-time index, ACID, push subscriptions
+  spacetimedb:
+    image: clockworklabs/spacetimedb
+    ports: ["3000:3000"]
+    volumes:
+      - spacetimedb-data:/stdb/data
+    restart: unless-stopped
+
+  # Q-GST Versioned Memory — git-backed content store (rebranded Gitea)
+  versioned-memory:
+    image: gitea/gitea:latest
+    ports: ["3333:3000", "2222:22"]
+    environment:
+      GITEA__database__DB_TYPE: sqlite3
+      GITEA__server__ROOT_URL: http://localhost:3333
+      GITEA__server__SSH_DOMAIN: localhost
+      GITEA__DEFAULT__APP_NAME: "Q-GST Engine"
+      GITEA__q-gst__ENABLED: "true"
+      GITEA__q-gst__SPACETIMEDB_ENDPOINT: "ws://spacetimedb:3000"
+      GITEA__other__SHOW_FOOTER_POWERED_BY: "false"
+    volumes:
+      - gitea-data:/data
+    depends_on:
+      - spacetimedb
+    restart: unless-stopped
+
+  # CachedLLM API — CAG-powered agent inference (requires GPU)
+  # Uncomment when GPU is available:
+  # cachedllm:
+  #   build:
+  #     context: ../QGI-Cashed-LLM/cagent
+  #     dockerfile: Dockerfile
+  #   ports: ["8000:8000"]
+  #   environment:
+  #     SGLANG_ENDPOINT: http://sglang:30000
+  #   restart: unless-stopped
+
+volumes:
+  spacetimedb-data:
+  gitea-data:
