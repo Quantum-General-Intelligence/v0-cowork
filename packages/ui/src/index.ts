@@ -6,10 +6,7 @@ export {
   MemoryBrowser,
   type MemoryBrowserProps,
 } from './components/memory-browser'
-export {
-  SkillViewer,
-  type SkillViewerProps,
-} from './components/skill-viewer'
+export { SkillViewer, type SkillViewerProps } from './components/skill-viewer'
 
 // Hooks
 export {

@@ -98,9 +98,7 @@ export default function GPUDeployPage() {
 
         {/* Provider */}
         <div className="mb-4">
-          <label className="mb-2 block text-sm font-medium">
-            GPU Provider
-          </label>
+          <label className="mb-2 block text-sm font-medium">GPU Provider</label>
           <div className="grid grid-cols-3 gap-3">
             {PROVIDERS.map((p) => (
               <button

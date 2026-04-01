@@ -32,10 +32,7 @@ export const SHARED_REPOS = [
 export type SharedRepoName = (typeof SHARED_REPOS)[number]
 
 /** Resolve brain repo name for an agent */
-export function brainRepoName(
-  agentName: string,
-  type: BrainRepoType,
-): string {
+export function brainRepoName(agentName: string, type: BrainRepoType): string {
   return `${agentName}-${type}`
 }
 
@@ -350,10 +347,7 @@ export class VersionedMemoryClient {
   }
 
   /** Create a tenant org */
-  async createOrg(
-    orgName: string,
-    description?: string,
-  ): Promise<GiteaOrg> {
+  async createOrg(orgName: string, description?: string): Promise<GiteaOrg> {
     return this.request<GiteaOrg>('POST', '/api/v1/orgs', {
       username: orgName,
       full_name: orgName,
@@ -474,7 +468,9 @@ export class VersionedMemoryClient {
   async listBrainRepos(agentName: string): Promise<GiteaRepo[]> {
     const allRepos = await this.listRepos()
     return allRepos.filter((r) =>
-      BRAIN_REPO_TYPES.some((type) => r.name === brainRepoName(agentName, type)),
+      BRAIN_REPO_TYPES.some(
+        (type) => r.name === brainRepoName(agentName, type),
+      ),
     )
   }
 

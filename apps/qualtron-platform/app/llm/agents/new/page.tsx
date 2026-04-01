@@ -1,15 +1,48 @@
 'use client'
 
-import { useCallback, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import {
+  useCallback,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react'
 import Link from 'next/link'
 
 type Step = 'config' | 'upload' | 'processing' | 'done'
 
 const SUPPORTED_FORMATS = [
-  '.pdf', '.docx', '.txt', '.md', '.csv', '.json', '.jsonl',
-  '.py', '.ts', '.tsx', '.js', '.jsx', '.go', '.java', '.rs',
-  '.rb', '.php', '.swift', '.kt', '.c', '.cpp', '.cs', '.sql',
-  '.sh', '.yaml', '.yml', '.toml', '.xml', '.html', '.css', '.zip',
+  '.pdf',
+  '.docx',
+  '.txt',
+  '.md',
+  '.csv',
+  '.json',
+  '.jsonl',
+  '.py',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.go',
+  '.java',
+  '.rs',
+  '.rb',
+  '.php',
+  '.swift',
+  '.kt',
+  '.c',
+  '.cpp',
+  '.cs',
+  '.sql',
+  '.sh',
+  '.yaml',
+  '.yml',
+  '.toml',
+  '.xml',
+  '.html',
+  '.css',
+  '.zip',
 ]
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
@@ -105,48 +138,39 @@ export default function CreateLLMAgentPage() {
 
       {/* Step indicator */}
       <div className="flex gap-2">
-        {(['config', 'upload', 'processing', 'done'] as Step[]).map(
-          (s, i) => (
-            <div
-              key={s}
-              className={`flex items-center gap-2 ${i > 0 ? '' : ''}`}
-            >
-              {i > 0 && (
-                <div
-                  className={`h-px w-8 ${
-                    steps(step) >= i
-                      ? 'bg-primary'
-                      : 'bg-border'
-                  }`}
-                />
-              )}
+        {(['config', 'upload', 'processing', 'done'] as Step[]).map((s, i) => (
+          <div key={s} className={`flex items-center gap-2 ${i > 0 ? '' : ''}`}>
+            {i > 0 && (
               <div
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                  steps(step) >= i
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground'
+                className={`h-px w-8 ${
+                  steps(step) >= i ? 'bg-primary' : 'bg-border'
                 }`}
-              >
-                {steps(step) > i ? '✓' : i + 1}
-              </div>
-              <span
-                className={`text-xs ${
-                  steps(step) >= i
-                    ? 'text-foreground'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {s === 'config'
-                  ? 'Configure'
-                  : s === 'upload'
-                    ? 'Upload KB'
-                    : s === 'processing'
-                      ? 'Processing'
-                      : 'Ready'}
-              </span>
+              />
+            )}
+            <div
+              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                steps(step) >= i
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {steps(step) > i ? '✓' : i + 1}
             </div>
-          ),
-        )}
+            <span
+              className={`text-xs ${
+                steps(step) >= i ? 'text-foreground' : 'text-muted-foreground'
+              }`}
+            >
+              {s === 'config'
+                ? 'Configure'
+                : s === 'upload'
+                  ? 'Upload KB'
+                  : s === 'processing'
+                    ? 'Processing'
+                    : 'Ready'}
+            </span>
+          </div>
+        ))}
       </div>
 
       {/* Step 1: Configuration */}
@@ -362,7 +386,13 @@ export default function CreateLLMAgentPage() {
                 { key: 'warming_cache', label: 'Cache' },
               ].map((s) => {
                 const stepProgress =
-                  { parsing: 0.1, formatting: 0.3, counting_tokens: 0.5, storing: 0.7, warming_cache: 0.9 }[s.key] ?? 1
+                  {
+                    parsing: 0.1,
+                    formatting: 0.3,
+                    counting_tokens: 0.5,
+                    storing: 0.7,
+                    warming_cache: 0.9,
+                  }[s.key] ?? 1
                 const isDone = progress > stepProgress
                 const isActive = currentStep === s.key
                 return (

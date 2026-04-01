@@ -6,24 +6,24 @@ This monorepo (formerly `v0-cowork`) becomes the home for all customer-facing Qu
 
 ### What Exists Today
 
-| Repo | What | Stack | Status |
-|---|---|---|---|
-| **v0-cowork** (this repo) | v0 clone SDK + playground | TypeScript, Turbo, pnpm, Next.js | Active — becomes Qualtron monorepo |
-| **gitea** | Q-GST Admin UI + Versioned Memory | Go + Vue islands | Active — rebranded, admin-only |
-| **Q-GST-Engine** | Cognitive engine (memory, graph, temporal) | Rust/WASM on SpacetimeDB | Active — 62 API calls, 22 tables |
-| **QGI-Cashed-LLM** | CAG agent platform backend | Python (FastAPI + SGLang) | Active — backend stays, dashboard replaced |
-| **QGI-AI-infra** | Production deployment configs | Shell/Docker | Active |
-| **SpacetimeDB** | Upstream fork (reference only) | Rust | No changes |
+| Repo                      | What                                       | Stack                            | Status                                     |
+| ------------------------- | ------------------------------------------ | -------------------------------- | ------------------------------------------ |
+| **v0-cowork** (this repo) | v0 clone SDK + playground                  | TypeScript, Turbo, pnpm, Next.js | Active — becomes Qualtron monorepo         |
+| **gitea**                 | Q-GST Admin UI + Versioned Memory          | Go + Vue islands                 | Active — rebranded, admin-only             |
+| **Q-GST-Engine**          | Cognitive engine (memory, graph, temporal) | Rust/WASM on SpacetimeDB         | Active — 62 API calls, 22 tables           |
+| **QGI-Cashed-LLM**        | CAG agent platform backend                 | Python (FastAPI + SGLang)        | Active — backend stays, dashboard replaced |
+| **QGI-AI-infra**          | Production deployment configs              | Shell/Docker                     | Active                                     |
+| **SpacetimeDB**           | Upstream fork (reference only)             | Rust                             | No changes                                 |
 
 ### What We're Building
 
 Three customer-facing UIs plus shared infrastructure:
 
-| App | Purpose | Users |
-|---|---|---|
-| **Qualtron Platform** | Agent management, knowledge ingest, graph explorer, analytics, billing | Company admins, developers |
-| **Qualtron Cowork** | Collaborative AI workspace, multi-agent chat, project files, PR review | End users, teams |
-| **Qualtron Ingest** | Standalone knowledge upload + processing pipeline status | Data teams, knowledge managers |
+| App                   | Purpose                                                                | Users                          |
+| --------------------- | ---------------------------------------------------------------------- | ------------------------------ |
+| **Qualtron Platform** | Agent management, knowledge ingest, graph explorer, analytics, billing | Company admins, developers     |
+| **Qualtron Cowork**   | Collaborative AI workspace, multi-agent chat, project files, PR review | End users, teams               |
+| **Qualtron Ingest**   | Standalone knowledge upload + processing pipeline status               | Data teams, knowledge managers |
 
 ### What Gets Replaced
 
@@ -84,12 +84,12 @@ The Python backend (`cagent/api/`, `cagent/skills/`, `cagent/ingest/`) stays in 
 
 ### Connection Details
 
-| Service | Protocol | Endpoint | Auth |
-|---|---|---|---|
-| SpacetimeDB | WebSocket | `ws://localhost:3000` | SpacetimeDB Identity token |
-| Gitea (Versioned Memory) | REST | `http://localhost:3333/api/v1/` | Gitea OAuth2 or API token |
-| CachedLLM | REST (OpenAI-compatible) | `http://localhost:8000/v1/` | API key (`cag_*`) |
-| Zvec | Not directly accessed | Embedded in runner process | N/A — accessed via Q-GST Engine API |
+| Service                  | Protocol                 | Endpoint                        | Auth                                |
+| ------------------------ | ------------------------ | ------------------------------- | ----------------------------------- |
+| SpacetimeDB              | WebSocket                | `ws://localhost:3000`           | SpacetimeDB Identity token          |
+| Gitea (Versioned Memory) | REST                     | `http://localhost:3333/api/v1/` | Gitea OAuth2 or API token           |
+| CachedLLM                | REST (OpenAI-compatible) | `http://localhost:8000/v1/`     | API key (`cag_*`)                   |
+| Zvec                     | Not directly accessed    | Embedded in runner process      | N/A — accessed via Q-GST Engine API |
 
 ---
 
@@ -271,6 +271,7 @@ client.engine.subscribe('events', { tenant: 'acme' }, (event) => {
 ```
 
 **Key design decisions:**
+
 - Wraps SpacetimeDB TypeScript SDK for WebSocket connections
 - Wraps Gitea REST API (not git protocol — we need issues, PRs, wiki, not just files)
 - Wraps CachedLLM with OpenAI-compatible interface (drop-in for any OpenAI client)
@@ -282,6 +283,7 @@ client.engine.subscribe('events', { tenant: 'acme' }, (event) => {
 Reusable React components that any Qualtron app can import.
 
 **Dependencies:**
+
 - `@qgst/client` — for data fetching and subscriptions
 - `@xyflow/react` (React Flow) — graph visualization
 - `recharts` or `@tremor/react` — charts and analytics
@@ -290,18 +292,18 @@ Reusable React components that any Qualtron app can import.
 
 **Component inventory:**
 
-| Component | Used In | Data Source |
-|---|---|---|
-| `<GraphViewer>` | Platform (graph page), Cowork (project graph) | SpacetimeDB nodes/edges |
-| `<Timeline>` | Platform (timeline page), Cowork (activity) | SpacetimeDB epochs/events |
-| `<MemoryBrowser>` | Platform (agent brain), Cowork (project files) | Gitea REST API |
-| `<ChatStream>` | Platform (playground), Cowork (chat) | CachedLLM streaming API |
-| `<AgentCard>` | Platform (agent list), Cowork (member list) | SpacetimeDB agents table |
-| `<StatusBadge>` | All apps (header) | `/-/q-gst/api/status` |
-| `<UsageChart>` | Platform (analytics/billing) | SpacetimeDB usage_metrics |
-| `<IngestProgress>` | Platform (ingest), Ingest app | CachedLLM ingest API |
-| `<PRReviewCard>` | Cowork (review page) | Gitea PR API |
-| `<KanbanBoard>` | Cowork (board page) | Gitea org project API |
+| Component          | Used In                                        | Data Source               |
+| ------------------ | ---------------------------------------------- | ------------------------- |
+| `<GraphViewer>`    | Platform (graph page), Cowork (project graph)  | SpacetimeDB nodes/edges   |
+| `<Timeline>`       | Platform (timeline page), Cowork (activity)    | SpacetimeDB epochs/events |
+| `<MemoryBrowser>`  | Platform (agent brain), Cowork (project files) | Gitea REST API            |
+| `<ChatStream>`     | Platform (playground), Cowork (chat)           | CachedLLM streaming API   |
+| `<AgentCard>`      | Platform (agent list), Cowork (member list)    | SpacetimeDB agents table  |
+| `<StatusBadge>`    | All apps (header)                              | `/-/q-gst/api/status`     |
+| `<UsageChart>`     | Platform (analytics/billing)                   | SpacetimeDB usage_metrics |
+| `<IngestProgress>` | Platform (ingest), Ingest app                  | CachedLLM ingest API      |
+| `<PRReviewCard>`   | Cowork (review page)                           | Gitea PR API              |
+| `<KanbanBoard>`    | Cowork (board page)                            | Gitea org project API     |
 
 ---
 
@@ -311,39 +313,39 @@ These are the 22 tables in SpacetimeDB that `@qgst/client` wraps. Types are auto
 
 ### Core Memory (9 tables)
 
-| Table | Key Fields | UI Usage |
-|---|---|---|
-| `agents` | identity, tenant, name, role, permissions | Agent list, cards |
-| `events` | tenant, actor, kind, event_type, data | Activity feeds, timeline |
-| `states` | tenant, agent, scope, key, value | Working memory display |
-| `nodes` | uid, tenant, graph, kind, label, meta, memory_ref | Graph viewer |
-| `edges` | tenant, graph, from_node, to_node, rel, weight | Graph viewer |
-| `context_sessions` | tenant, agent, status, context_frame | Session viewer |
-| `attention_cache` | tenant, agent, cache_key, content, relevance | Hot memory panel |
-| `retrieval_sources` | tenant, source_type, name, config | Settings page |
-| `projects` | tenant, name, status, repo_name, gitea_project_id | Project list, kanban |
+| Table               | Key Fields                                        | UI Usage                 |
+| ------------------- | ------------------------------------------------- | ------------------------ |
+| `agents`            | identity, tenant, name, role, permissions         | Agent list, cards        |
+| `events`            | tenant, actor, kind, event_type, data             | Activity feeds, timeline |
+| `states`            | tenant, agent, scope, key, value                  | Working memory display   |
+| `nodes`             | uid, tenant, graph, kind, label, meta, memory_ref | Graph viewer             |
+| `edges`             | tenant, graph, from_node, to_node, rel, weight    | Graph viewer             |
+| `context_sessions`  | tenant, agent, status, context_frame              | Session viewer           |
+| `attention_cache`   | tenant, agent, cache_key, content, relevance      | Hot memory panel         |
+| `retrieval_sources` | tenant, source_type, name, config                 | Settings page            |
+| `projects`          | tenant, name, status, repo_name, gitea_project_id | Project list, kanban     |
 
 ### Operations (7 tables)
 
-| Table | Key Fields | UI Usage |
-|---|---|---|
-| `consolidation_logs` | tenant, run_at, edges_decayed/pruned | Admin panel |
-| `consolidation_schedules` | tenant, interval, config | Settings page |
-| `usage_metrics` | tenant, agent, period, metric, count | Analytics/billing |
-| `quotas` | tenant, agent, metric, max_value | Settings page |
-| `rate_counters` | tenant, agent, metric, count | Rate limit display |
-| `audit_logs` | tenant, actor, action, details | Audit trail |
+| Table                     | Key Fields                           | UI Usage           |
+| ------------------------- | ------------------------------------ | ------------------ |
+| `consolidation_logs`      | tenant, run_at, edges_decayed/pruned | Admin panel        |
+| `consolidation_schedules` | tenant, interval, config             | Settings page      |
+| `usage_metrics`           | tenant, agent, period, metric, count | Analytics/billing  |
+| `quotas`                  | tenant, agent, metric, max_value     | Settings page      |
+| `rate_counters`           | tenant, agent, metric, count         | Rate limit display |
+| `audit_logs`              | tenant, actor, action, details       | Audit trail        |
 
 ### Temporal (6 tables)
 
-| Table | Key Fields | UI Usage |
-|---|---|---|
-| `epochs` | tenant, tick, status | Timeline, tick counter |
-| `causal_ops` | tenant, op_id, parent_op | Causal DAG viewer |
-| `future_events` | tenant, fire_at_tick, action | Scheduled actions list |
-| `chronos_loops` | tenant, name, pattern, action | Recurring tasks |
-| `universal_clocks` | tenant, tick, wall_time | Time mapping |
-| `tick_logs` | tenant, tick, summary | Tick history |
+| Table              | Key Fields                    | UI Usage               |
+| ------------------ | ----------------------------- | ---------------------- |
+| `epochs`           | tenant, tick, status          | Timeline, tick counter |
+| `causal_ops`       | tenant, op_id, parent_op      | Causal DAG viewer      |
+| `future_events`    | tenant, fire_at_tick, action  | Scheduled actions list |
+| `chronos_loops`    | tenant, name, pattern, action | Recurring tasks        |
+| `universal_clocks` | tenant, tick, wall_time       | Time mapping           |
+| `tick_logs`        | tenant, tick, summary         | Tick history           |
 
 ---
 
@@ -351,19 +353,19 @@ These are the 22 tables in SpacetimeDB that `@qgst/client` wraps. Types are auto
 
 These are the endpoints in QGI-Cashed-LLM that `@qgst/client` wraps. The API is OpenAI-compatible.
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/v1/chat/completions` | POST | Chat with an agent (streaming supported) |
-| `/v1/models` | GET | List available agents (OpenAI models format) |
-| `/v1/agents` | GET/POST | List/create agents |
-| `/v1/agents/{id}` | GET/PATCH/DELETE | Agent CRUD |
-| `/v1/agents/{id}/ingest/url` | POST | Ingest from URLs |
-| `/v1/agents/{id}/ingest/upload` | POST | Ingest from file upload |
-| `/v1/ingest/{job_id}` | GET | Ingest job status |
-| `/v1/agents/{id}/keys` | GET/POST | API key management |
-| `/v1/agents/{id}/analytics` | GET | Usage analytics |
-| `/v1/agents/{id}/deploy` | POST | Deploy to dedicated GPU |
-| `/health` | GET | Health check |
+| Endpoint                        | Method           | Description                                  |
+| ------------------------------- | ---------------- | -------------------------------------------- |
+| `/v1/chat/completions`          | POST             | Chat with an agent (streaming supported)     |
+| `/v1/models`                    | GET              | List available agents (OpenAI models format) |
+| `/v1/agents`                    | GET/POST         | List/create agents                           |
+| `/v1/agents/{id}`               | GET/PATCH/DELETE | Agent CRUD                                   |
+| `/v1/agents/{id}/ingest/url`    | POST             | Ingest from URLs                             |
+| `/v1/agents/{id}/ingest/upload` | POST             | Ingest from file upload                      |
+| `/v1/ingest/{job_id}`           | GET              | Ingest job status                            |
+| `/v1/agents/{id}/keys`          | GET/POST         | API key management                           |
+| `/v1/agents/{id}/analytics`     | GET              | Usage analytics                              |
+| `/v1/agents/{id}/deploy`        | POST             | Deploy to dedicated GPU                      |
+| `/health`                       | GET              | Health check                                 |
 
 ---
 
@@ -371,18 +373,18 @@ These are the endpoints in QGI-Cashed-LLM that `@qgst/client` wraps. The API is 
 
 These are the Gitea REST API endpoints that `@qgst/client` wraps for content store operations.
 
-| Operation | Endpoint | Description |
-|---|---|---|
-| List repos | `GET /api/v1/orgs/{org}/repos` | List tenant repos (brains, projects, shared) |
-| List files | `GET /api/v1/repos/{owner}/{repo}/contents/{path}` | Browse repo tree |
-| Read file | `GET /api/v1/repos/{owner}/{repo}/contents/{filepath}` | Read file content |
-| Write file | `PUT /api/v1/repos/{owner}/{repo}/contents/{filepath}` | Create/update file |
-| List PRs | `GET /api/v1/repos/{owner}/{repo}/pulls` | PR list (human-in-the-loop) |
-| Create PR | `POST /api/v1/repos/{owner}/{repo}/pulls` | Open PR for agent work |
-| List issues | `GET /api/v1/repos/{owner}/{repo}/issues` | Tasks, future events |
-| Wiki pages | `GET /api/v1/repos/{owner}/{repo}/wiki/pages` | Agent skills |
-| Org projects | `GET /api/v1/orgs/{org}/projects` | Kanban boards |
-| User list | `GET /api/v1/admin/users` | Agent/user management |
+| Operation    | Endpoint                                               | Description                                  |
+| ------------ | ------------------------------------------------------ | -------------------------------------------- |
+| List repos   | `GET /api/v1/orgs/{org}/repos`                         | List tenant repos (brains, projects, shared) |
+| List files   | `GET /api/v1/repos/{owner}/{repo}/contents/{path}`     | Browse repo tree                             |
+| Read file    | `GET /api/v1/repos/{owner}/{repo}/contents/{filepath}` | Read file content                            |
+| Write file   | `PUT /api/v1/repos/{owner}/{repo}/contents/{filepath}` | Create/update file                           |
+| List PRs     | `GET /api/v1/repos/{owner}/{repo}/pulls`               | PR list (human-in-the-loop)                  |
+| Create PR    | `POST /api/v1/repos/{owner}/{repo}/pulls`              | Open PR for agent work                       |
+| List issues  | `GET /api/v1/repos/{owner}/{repo}/issues`              | Tasks, future events                         |
+| Wiki pages   | `GET /api/v1/repos/{owner}/{repo}/wiki/pages`          | Agent skills                                 |
+| Org projects | `GET /api/v1/orgs/{org}/projects`                      | Kanban boards                                |
+| User list    | `GET /api/v1/admin/users`                              | Agent/user management                        |
 
 ---
 
@@ -502,42 +504,47 @@ jobs:
 
 Each app deploys independently:
 
-| App | Deployment | URL |
-|---|---|---|
+| App               | Deployment           | URL                    |
+| ----------------- | -------------------- | ---------------------- |
 | Qualtron Platform | Vercel / self-hosted | `platform.qualtron.ai` |
-| Qualtron Cowork | Vercel / self-hosted | `cowork.qualtron.ai` |
-| Qualtron Ingest | Vercel / self-hosted | `ingest.qualtron.ai` |
-| v0 Playground | Vercel | `v0.qualtron.ai` |
+| Qualtron Cowork   | Vercel / self-hosted | `cowork.qualtron.ai`   |
+| Qualtron Ingest   | Vercel / self-hosted | `ingest.qualtron.ai`   |
+| v0 Playground     | Vercel               | `v0.qualtron.ai`       |
 
 ---
 
 ## Implementation Phases
 
 ### Phase 1: Foundation (Week 1)
+
 - [ ] Create `packages/qgst-client` with typed wrappers for all 3 backends
 - [ ] Create `packages/ui` with `StatusBadge`, `AgentCard`, `ChatStream`
 - [ ] Add `docker-compose.dev.yml` for local backend stack
 - [ ] Scaffold `apps/qualtron-platform` with Next.js 16 + shadcn/ui
 
 ### Phase 2: Platform Core (Week 2)
+
 - [ ] Platform: Agent list + detail pages
 - [ ] Platform: Brain browser (Gitea file tree)
 - [ ] Platform: Chat playground with streaming
 - [ ] `@qgst/ui`: `<MemoryBrowser>` component
 
 ### Phase 3: Graph & Timeline (Week 3)
+
 - [ ] `@qgst/ui`: `<GraphViewer>` with React Flow
 - [ ] `@qgst/ui`: `<Timeline>` with epoch/tick visualization
 - [ ] Platform: Knowledge graph explorer page
 - [ ] Platform: Timeline page
 
 ### Phase 4: Analytics & Billing (Week 3-4)
+
 - [ ] `@qgst/ui`: `<UsageChart>` with Tremor/Recharts
 - [ ] Platform: Analytics dashboard
 - [ ] Platform: Billing page
 - [ ] Platform: Settings (quotas, consolidation, retrieval sources)
 
 ### Phase 5: Cowork (Week 4-5)
+
 - [ ] Scaffold `apps/qualtron-cowork`
 - [ ] Cowork: Project list + file browser
 - [ ] Cowork: Multi-agent chat interface
@@ -546,12 +553,14 @@ Each app deploys independently:
 - [ ] Cowork: Activity feed with real-time events
 
 ### Phase 6: Ingest (Week 5)
+
 - [ ] Scaffold `apps/qualtron-ingest`
 - [ ] Ingest: File upload + URL scraping
 - [ ] Ingest: Job progress tracking
 - [ ] Ingest: KB preview + activation
 
 ### Phase 7: Polish & Deploy (Week 6)
+
 - [ ] Schema sync automation (CI dispatch)
 - [ ] Auth: Shared OAuth2 via Gitea provider
 - [ ] Production deployment configs
@@ -561,10 +570,10 @@ Each app deploys independently:
 
 ## Related Repositories
 
-| Repo | Role | Link |
-|---|---|---|
-| **v0-cowork** (this) | Customer-facing UIs + shared packages | `Quantum-General-Intelligence/v0-cowork` |
-| **gitea** | Q-GST Admin UI + Versioned Memory backend | `Quantum-General-Intelligence/gitea` |
-| **Q-GST-Engine** | Rust/WASM cognitive engine (SpacetimeDB) | `Quantum-General-Intelligence/Q-GST-Engine` |
-| **QGI-Cashed-LLM** | CAG inference backend (Python/FastAPI) | `Quantum-General-Intelligence/QGI-Cashed-LLM` |
-| **QGI-AI-infra** | Production infrastructure configs | `Quantum-General-Intelligence/QGI-AI-infra` |
+| Repo                 | Role                                      | Link                                          |
+| -------------------- | ----------------------------------------- | --------------------------------------------- |
+| **v0-cowork** (this) | Customer-facing UIs + shared packages     | `Quantum-General-Intelligence/v0-cowork`      |
+| **gitea**            | Q-GST Admin UI + Versioned Memory backend | `Quantum-General-Intelligence/gitea`          |
+| **Q-GST-Engine**     | Rust/WASM cognitive engine (SpacetimeDB)  | `Quantum-General-Intelligence/Q-GST-Engine`   |
+| **QGI-Cashed-LLM**   | CAG inference backend (Python/FastAPI)    | `Quantum-General-Intelligence/QGI-Cashed-LLM` |
+| **QGI-AI-infra**     | Production infrastructure configs         | `Quantum-General-Intelligence/QGI-AI-infra`   |

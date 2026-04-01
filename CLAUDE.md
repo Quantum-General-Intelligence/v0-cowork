@@ -32,7 +32,7 @@ Start with `docker compose -f docker-compose.dev.yml up -d`. See QUALTRON-PLATFO
 - Next.js 16, React 19, Tailwind CSS 4
 - @xyflow/react (React Flow) for graph visualization
 - recharts for analytics charts
-- @radix-ui/* for accessible UI primitives
+- @radix-ui/\* for accessible UI primitives
 - SpacetimeDB TypeScript SDK for real-time subscriptions
 
 ## Related Repos

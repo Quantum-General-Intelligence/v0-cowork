@@ -54,7 +54,9 @@ export default function LLMAgentDetailPage({
 }) {
   const { id } = use(params)
   const [tab, setTab] = useState<Tab>('overview')
-  const [codeLanguage, setCodeLanguage] = useState<'python' | 'typescript' | 'curl'>('python')
+  const [codeLanguage, setCodeLanguage] = useState<
+    'python' | 'typescript' | 'curl'
+  >('python')
 
   return (
     <div className="space-y-6">
@@ -99,9 +101,7 @@ export default function LLMAgentDetailPage({
             { model: '122B', label: 'Deep Thinker', tier: 'Tier 3' },
           ].map((stage, i) => (
             <div key={stage.model} className="flex items-center gap-2">
-              {i > 0 && (
-                <span className="text-muted-foreground">→</span>
-              )}
+              {i > 0 && <span className="text-muted-foreground">→</span>}
               <div
                 className={`rounded-lg border p-3 text-center ${
                   stage.model === '122B'
@@ -123,9 +123,9 @@ export default function LLMAgentDetailPage({
           ))}
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          Tier 1 runs non-thinking (fast triage). Tier 2 enables reasoning.
-          Tier 3 (122B) produces the final comprehensive answer. KB is pre-cached
-          via RadixAttention — only paid once across all stages.
+          Tier 1 runs non-thinking (fast triage). Tier 2 enables reasoning. Tier
+          3 (122B) produces the final comprehensive answer. KB is pre-cached via
+          RadixAttention — only paid once across all stages.
         </p>
       </div>
 

@@ -1,7 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import type { GiteaContent, GiteaFileContent, VersionedMemoryClient } from '@qgst/client'
+import type {
+  GiteaContent,
+  GiteaFileContent,
+  VersionedMemoryClient,
+} from '@qgst/client'
 
 export interface MemoryBrowserProps {
   /** Versioned Memory client */
@@ -30,7 +34,9 @@ export function MemoryBrowser({
 }: MemoryBrowserProps) {
   const [currentPath, setCurrentPath] = useState(initialPath)
   const [entries, setEntries] = useState<GiteaContent[]>([])
-  const [selectedFile, setSelectedFile] = useState<GiteaFileContent | null>(null)
+  const [selectedFile, setSelectedFile] = useState<GiteaFileContent | null>(
+    null,
+  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -89,9 +95,7 @@ export function MemoryBrowser({
     }
   }
 
-  const fileContent = selectedFile?.content
-    ? atob(selectedFile.content)
-    : null
+  const fileContent = selectedFile?.content ? atob(selectedFile.content) : null
 
   return (
     <div
@@ -116,8 +120,13 @@ export function MemoryBrowser({
         }}
       >
         {breadcrumbs.map((crumb, i) => (
-          <span key={crumb.path} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {i > 0 && <span style={{ color: 'var(--muted-foreground, #666)' }}>/</span>}
+          <span
+            key={crumb.path}
+            style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            {i > 0 && (
+              <span style={{ color: 'var(--muted-foreground, #666)' }}>/</span>
+            )}
             <button
               onClick={() => loadPath(crumb.path)}
               style={{
@@ -141,11 +150,23 @@ export function MemoryBrowser({
 
       {/* Content */}
       {loading ? (
-        <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted-foreground, #666)' }}>
+        <div
+          style={{
+            padding: 24,
+            textAlign: 'center',
+            color: 'var(--muted-foreground, #666)',
+          }}
+        >
           Loading...
         </div>
       ) : error ? (
-        <div style={{ padding: 24, textAlign: 'center', color: 'var(--destructive, #f44)' }}>
+        <div
+          style={{
+            padding: 24,
+            textAlign: 'center',
+            color: 'var(--destructive, #f44)',
+          }}
+        >
           {error}
         </div>
       ) : selectedFile && fileContent ? (
@@ -160,7 +181,9 @@ export function MemoryBrowser({
               backgroundColor: 'var(--muted, #1a1a1a)',
             }}
           >
-            <span style={{ fontSize: 12, color: 'var(--muted-foreground, #666)' }}>
+            <span
+              style={{ fontSize: 12, color: 'var(--muted-foreground, #666)' }}
+            >
               {selectedFile.path} ({selectedFile.size} bytes)
             </span>
             <button
@@ -194,7 +217,13 @@ export function MemoryBrowser({
       ) : (
         <div>
           {entries.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted-foreground, #666)' }}>
+            <div
+              style={{
+                padding: 24,
+                textAlign: 'center',
+                color: 'var(--muted-foreground, #666)',
+              }}
+            >
               Empty
             </div>
           ) : (
