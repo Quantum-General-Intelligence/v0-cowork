@@ -1,24 +1,24 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import type { LLMAgent } from '@/lib/database.types'
 
-// Mock data — replaced by Supabase + CachedLLM sync
-const MOCK_AGENTS: LLMAgent[] = [
+// Mock data — replaced by Supabase + inference backend sync
+const MOCK_INSTANCES: LLMAgent[] = [
   {
     id: '1',
     team_id: 't1',
     engine_connection_id: 'ec1',
-    cachedllm_agent_id: 'support-agent-a3f2',
-    name: 'Support Agent',
-    description: 'Customer support with product knowledge base',
+    cachedllm_agent_id: 'qualtron-9b-600k-support',
+    name: 'Qualtron-9B-600K',
+    description: 'Customer support with product QHM loaded',
     system_prompt: 'You are a helpful support agent.',
     quality: 'max',
     mode: 'hosted',
     temperature: 0.7,
     max_tokens: 2048,
-    kb_token_count: 62000,
+    kb_token_count: 620000,
     kb_file_count: 12,
     kb_strategy: 'single_pass',
     kb_last_updated: new Date().toISOString(),
@@ -36,49 +36,54 @@ const MOCK_AGENTS: LLMAgent[] = [
   },
 ]
 
-export default function LLMAgentsPage() {
-  const [agents, setAgents] = useState<LLMAgent[]>(MOCK_AGENTS)
+const MODEL_TIERS: Record<string, string> = {
+  max: 'Enterprise',
+  balanced: 'Pro',
+}
+
+export default function ModelInstancesPage() {
+  const [instances] = useState<LLMAgent[]>(MOCK_INSTANCES)
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Qualtron CacheLLM Agents
+            Qualtron Model Instances
           </h1>
           <p className="text-muted-foreground">
-            Manage inference agents — knowledge bases, cache configuration,
-            pipeline stages, and GPU deployment.
+            Manage Qualtron model deployments — Quantum Hypergraph Memory
+            (QHM), CAG pipeline configuration, and GPU serving.
           </p>
         </div>
         <Link
           href="/llm/agents/new"
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
-          Create Agent
+          Create Instance
         </Link>
       </div>
 
-      {/* Agent Cards */}
+      {/* Model Cards */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {agents.map((agent) => (
-          <Link key={agent.id} href={`/llm/agents/${agent.cachedllm_agent_id}`}>
+        {instances.map((inst) => (
+          <Link key={inst.id} href={`/llm/agents/${inst.cachedllm_agent_id}`}>
             <div className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary/50">
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-card-foreground">
-                    {agent.name}
+                    {inst.name}
                   </h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {agent.description}
+                    {inst.description}
                   </p>
                 </div>
                 <div className="flex gap-1.5">
                   <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
-                    {agent.quality}
+                    {MODEL_TIERS[inst.quality] ?? inst.quality}
                   </span>
                   <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    {agent.mode}
+                    {inst.mode}
                   </span>
                 </div>
               </div>
@@ -90,7 +95,7 @@ export default function LLMAgentsPage() {
                     Requests
                   </p>
                   <p className="text-sm font-bold text-card-foreground">
-                    {agent.requests_today.toLocaleString()}
+                    {inst.requests_today.toLocaleString()}
                   </p>
                 </div>
                 <div>
@@ -98,17 +103,17 @@ export default function LLMAgentsPage() {
                     Tokens
                   </p>
                   <p className="text-sm font-bold text-card-foreground">
-                    {(agent.tokens_today / 1000).toFixed(0)}k
+                    {(inst.tokens_today / 1000).toFixed(0)}k
                   </p>
                 </div>
                 <div>
                   <p className="text-[10px] font-medium text-muted-foreground">
-                    KB Size
+                    QHM Size
                   </p>
                   <p className="text-sm font-bold text-card-foreground">
-                    {agent.kb_token_count > 0
-                      ? `${(agent.kb_token_count / 1000).toFixed(0)}k`
-                      : 'No KB'}
+                    {inst.kb_token_count > 0
+                      ? `${(inst.kb_token_count / 1000).toFixed(0)}k`
+                      : 'No QHM'}
                   </p>
                 </div>
                 <div>
@@ -116,15 +121,15 @@ export default function LLMAgentsPage() {
                     API Keys
                   </p>
                   <p className="text-sm font-bold text-card-foreground">
-                    {agent.api_keys_count}
+                    {inst.api_keys_count}
                   </p>
                 </div>
               </div>
 
-              {/* Pipeline indicator */}
+              {/* CAG Pipeline */}
               <div className="mt-3 flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground">
-                  Pipeline:
+                  CAG Pipeline:
                 </span>
                 {['0.8B', '2B', '4B', '9B'].map((stage) => (
                   <span
@@ -134,7 +139,7 @@ export default function LLMAgentsPage() {
                     {stage}
                   </span>
                 ))}
-                {agent.quality === 'max' && (
+                {inst.quality === 'max' && (
                   <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-mono text-primary">
                     122B
                   </span>

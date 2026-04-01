@@ -26,9 +26,9 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Qualtron CacheLLM',
+    title: 'Qualtron Models',
     items: [
-      { label: 'LLM Agents', href: '/llm/agents', icon: '🧠' },
+      { label: 'Model Instances', href: '/llm/agents', icon: '🧠' },
       { label: 'GPU Deploy', href: '/llm/deploy', icon: '🚀' },
       { label: 'Billing & Usage', href: '/llm/billing', icon: '💳' },
     ],
@@ -97,7 +97,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className="border-t border-sidebar-border px-4 py-3">
         <div className="text-xs text-sidebar-foreground/50">
-          Q-GST Engine v0.1.0
+          Qualtron Platform v0.1.0
         </div>
       </div>
     </aside>
