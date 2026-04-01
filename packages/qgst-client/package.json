@@ -1,0 +1,35 @@
+{
+  "name": "@qgst/client",
+  "version": "0.1.0",
+  "description": "TypeScript client for Q-GST Engine (SpacetimeDB + Gitea + CachedLLM)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "build": "bunchee",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "sync-schema": "tsx scripts/sync-schema.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "bunchee": "^6.5.2",
+    "tsx": "^4.19.2",
+    "typescript": "5.7.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  }
+}
