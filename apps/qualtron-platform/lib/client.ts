@@ -9,8 +9,7 @@ export function getClientConfig(): QGSTClientConfig {
     spacetimedb: {
       endpoint:
         process.env.NEXT_PUBLIC_SPACETIMEDB_ENDPOINT ?? 'ws://localhost:3000',
-      module:
-        process.env.NEXT_PUBLIC_SPACETIMEDB_MODULE ?? 'spacetime-engine',
+      module: process.env.NEXT_PUBLIC_SPACETIMEDB_MODULE ?? 'spacetime-engine',
     },
     versionedMemory: {
       endpoint: process.env.QGST_MEMORY_URL ?? 'http://localhost:3333',

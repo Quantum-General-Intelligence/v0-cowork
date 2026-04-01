@@ -1,11 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useState, type FormEvent } from 'react'
-import type {
-  ChatMessage,
-  StreamingChunk,
-  CachedLLMClient,
-} from '@qgst/client'
+import type { ChatMessage, StreamingChunk, CachedLLMClient } from '@qgst/client'
 
 export interface ChatStreamProps {
   /** CachedLLM client instance */
@@ -149,8 +145,7 @@ export function ChatStream({
             key={i}
             style={{
               display: 'flex',
-              justifyContent:
-                msg.role === 'user' ? 'flex-end' : 'flex-start',
+              justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
             }}
           >
             <div

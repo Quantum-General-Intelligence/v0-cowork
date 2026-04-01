@@ -296,9 +296,7 @@ export class CachedLLMClient {
     })
   }
 
-  async *chatStream(
-    request: ChatRequest,
-  ): AsyncGenerator<StreamingChunk> {
+  async *chatStream(request: ChatRequest): AsyncGenerator<StreamingChunk> {
     const url = `${this.endpoint}/v1/chat/completions`
     const body = JSON.stringify({ ...request, stream: true })
 
@@ -345,11 +343,7 @@ export class CachedLLMClient {
     agentId: string,
     update: AgentUpdate,
   ): Promise<AgentResponse> {
-    return this.request<AgentResponse>(
-      'PATCH',
-      `/v1/agents/${agentId}`,
-      update,
-    )
+    return this.request<AgentResponse>('PATCH', `/v1/agents/${agentId}`, update)
   }
 
   async deleteAgent(agentId: string): Promise<void> {
@@ -368,14 +362,11 @@ export class CachedLLMClient {
     for (const file of files) {
       formData.append('files', file)
     }
-    const res = await fetch(
-      `${this.endpoint}/v1/agents/${agentId}/ingest`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${this.apiKey}` },
-        body: formData,
-      },
-    )
+    const res = await fetch(`${this.endpoint}/v1/agents/${agentId}/ingest`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+      body: formData,
+    })
     if (!res.ok) {
       throw new Error(`Ingest failed: ${res.status} ${res.statusText}`)
     }
@@ -387,10 +378,11 @@ export class CachedLLMClient {
     urls: string[],
     maxDepth = 1,
   ): Promise<IngestJobResponse> {
-    return this.post<IngestJobResponse>(
-      `/v1/agents/${agentId}/ingest/url`,
-      { urls, max_depth: maxDepth, agent_id: agentId },
-    )
+    return this.post<IngestJobResponse>(`/v1/agents/${agentId}/ingest/url`, {
+      urls,
+      max_depth: maxDepth,
+      agent_id: agentId,
+    })
   }
 
   async getIngestJob(jobId: string): Promise<IngestJobStatus> {
@@ -417,10 +409,7 @@ export class CachedLLMClient {
   }
 
   async deleteKey(agentId: string, keyId: string): Promise<void> {
-    await this.request<unknown>(
-      'DELETE',
-      `/v1/agents/${agentId}/keys/${keyId}`,
-    )
+    await this.request<unknown>('DELETE', `/v1/agents/${agentId}/keys/${keyId}`)
   }
 
   // ---------------------------------------------------------------------------

@@ -12,14 +12,12 @@ export interface StatusBadgeProps {
   size?: 'sm' | 'md'
 }
 
-const STATUS_CONFIG: Record<
-  ConnectionStatus,
-  { color: string; text: string }
-> = {
-  connected: { color: '#00FF94', text: 'Connected' },
-  connecting: { color: '#FFB800', text: 'Connecting' },
-  disconnected: { color: '#FF4444', text: 'Disconnected' },
-}
+const STATUS_CONFIG: Record<ConnectionStatus, { color: string; text: string }> =
+  {
+    connected: { color: '#00FF94', text: 'Connected' },
+    connecting: { color: '#FFB800', text: 'Connecting' },
+    disconnected: { color: '#FF4444', text: 'Disconnected' },
+  }
 
 export function StatusBadge({
   status: statusOverride,
@@ -55,7 +53,8 @@ export function StatusBadge({
           height: dotSize,
           borderRadius: '50%',
           backgroundColor: config.color,
-          boxShadow: status === 'connected' ? `0 0 6px ${config.color}` : undefined,
+          boxShadow:
+            status === 'connected' ? `0 0 6px ${config.color}` : undefined,
         }}
       />
       <span style={{ opacity: 0.7 }}>{label}</span>

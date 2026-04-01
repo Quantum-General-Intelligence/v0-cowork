@@ -1,22 +1,59 @@
 /**
- * Versioned Memory Client — Typed wrapper for Gitea REST API.
+ * Q-GST Versioned Memory Client
  *
- * Wraps the Gitea REST API endpoints used by Q-GST for content store operations:
- * repos, files, PRs, issues, wiki, and org projects (kanban).
+ * Typed wrapper for Q-GST Versioned Memory (content store) operations:
+ * brain repos, memory files, knowledge reviews (PRs), tasks (issues),
+ * agent skills (wiki), project boards, and agent provisioning.
  */
 
 import { authHeaders, fetchJSON } from './utils'
+
+// =============================================================================
+// Q-GST Memory Architecture Constants
+// =============================================================================
+
+/** Brain repo types — 5 per agent */
+export const BRAIN_REPO_TYPES = [
+  'episodic',
+  'knowledge',
+  'analysis',
+  'context',
+  'inbox',
+] as const
+export type BrainRepoType = (typeof BRAIN_REPO_TYPES)[number]
+
+/** Shared repos — 4 per tenant */
+export const SHARED_REPOS = [
+  'shared-knowledge',
+  'shared-templates',
+  'shared-ontology',
+  'admin-config',
+] as const
+export type SharedRepoName = (typeof SHARED_REPOS)[number]
+
+/** Resolve brain repo name for an agent */
+export function brainRepoName(
+  agentName: string,
+  type: BrainRepoType,
+): string {
+  return `${agentName}-${type}`
+}
+
+/** Resolve tenant org name */
+export function tenantOrgName(tenant: string): string {
+  return `qgst-${tenant}`
+}
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
 export interface VersionedMemoryConfig {
-  /** Gitea endpoint, e.g. "http://localhost:3333" */
+  /** Q-GST Versioned Memory endpoint */
   endpoint: string
-  /** Gitea API token */
+  /** API token */
   token: string
-  /** Default owner/org, e.g. "qgst-acme" */
+  /** Default tenant org, e.g. "qgst-acme" */
   owner: string
 }
 
@@ -120,6 +157,25 @@ export interface GiteaProject {
   board_type: number
   created_at: string
   updated_at: string
+}
+
+export interface GiteaOrg {
+  id: number
+  username: string
+  full_name: string
+  description: string
+  avatar_url: string
+  visibility: string
+}
+
+export interface ProvisionResult {
+  agent: string
+  tenant: string
+  org: string
+  userCreated: boolean
+  orgCreated: boolean
+  brainRepos: string[]
+  sharedRepos: string[]
 }
 
 // =============================================================================
@@ -262,12 +318,202 @@ export class VersionedMemoryClient {
   }
 
   // ---------------------------------------------------------------------------
-  // Org Projects (Kanban)
+  // Project Boards (Kanban)
   // ---------------------------------------------------------------------------
 
   async listProjects(org?: string): Promise<GiteaProject[]> {
     const o = org ?? this.owner
     return this.get<GiteaProject[]>(`/api/v1/orgs/${o}/projects`)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Agent Provisioning — Admin operations for Q-GST Engine
+  // ---------------------------------------------------------------------------
+
+  /** List all agents (users) in the system */
+  async listUsers(): Promise<GiteaUser[]> {
+    return this.get<GiteaUser[]>('/api/v1/admin/users?limit=50')
+  }
+
+  /** Create an agent identity in versioned memory */
+  async createUser(
+    username: string,
+    email: string,
+    password: string,
+  ): Promise<GiteaUser> {
+    return this.request<GiteaUser>('POST', '/api/v1/admin/users', {
+      username,
+      email,
+      password,
+      must_change_password: false,
+    })
+  }
+
+  /** Create a tenant org */
+  async createOrg(
+    orgName: string,
+    description?: string,
+  ): Promise<GiteaOrg> {
+    return this.request<GiteaOrg>('POST', '/api/v1/orgs', {
+      username: orgName,
+      full_name: orgName,
+      description: description ?? `Q-GST tenant: ${orgName}`,
+      visibility: 'private',
+    })
+  }
+
+  /** Get tenant org details */
+  async getOrg(orgName?: string): Promise<GiteaOrg> {
+    const o = orgName ?? this.owner
+    return this.get<GiteaOrg>(`/api/v1/orgs/${o}`)
+  }
+
+  /** List org members (agents in this tenant) */
+  async listOrgMembers(orgName?: string): Promise<GiteaUser[]> {
+    const o = orgName ?? this.owner
+    return this.get<GiteaUser[]>(`/api/v1/orgs/${o}/members`)
+  }
+
+  /** Add agent to tenant org */
+  async addOrgMember(username: string, orgName?: string): Promise<void> {
+    const o = orgName ?? this.owner
+    await this.request<unknown>(
+      'PUT',
+      `/api/v1/orgs/${o}/members/${username}`,
+      {},
+    )
+  }
+
+  /** Create a repo in the tenant org (brain repo, project repo, etc.) */
+  async createRepo(
+    repoName: string,
+    description?: string,
+    isPrivate = true,
+    orgName?: string,
+  ): Promise<GiteaRepo> {
+    const o = orgName ?? this.owner
+    return this.request<GiteaRepo>('POST', `/api/v1/orgs/${o}/repos`, {
+      name: repoName,
+      description: description ?? '',
+      private: isPrivate,
+      auto_init: true,
+    })
+  }
+
+  /**
+   * Provision a full agent: create user, add to org, create 5 brain repos.
+   * Returns summary of what was created.
+   */
+  async provisionAgent(
+    tenant: string,
+    agentName: string,
+    email: string,
+    password: string,
+  ): Promise<ProvisionResult> {
+    const orgName = tenantOrgName(tenant)
+    const result: ProvisionResult = {
+      agent: agentName,
+      tenant,
+      org: orgName,
+      userCreated: false,
+      orgCreated: false,
+      brainRepos: [],
+      sharedRepos: [],
+    }
+
+    // Ensure tenant org exists
+    try {
+      await this.getOrg(orgName)
+    } catch {
+      await this.createOrg(orgName, `Q-GST Engine tenant: ${tenant}`)
+      result.orgCreated = true
+      // Create shared repos
+      for (const shared of SHARED_REPOS) {
+        try {
+          await this.createRepo(shared, `Q-GST ${shared}`, true, orgName)
+          result.sharedRepos.push(shared)
+        } catch {
+          // May already exist
+        }
+      }
+    }
+
+    // Create agent user
+    try {
+      await this.createUser(agentName, email, password)
+      result.userCreated = true
+    } catch {
+      // May already exist
+    }
+
+    // Add to org
+    await this.addOrgMember(agentName, orgName)
+
+    // Create brain repos
+    for (const type of BRAIN_REPO_TYPES) {
+      const repoName = brainRepoName(agentName, type)
+      try {
+        await this.createRepo(
+          repoName,
+          `${agentName} — ${type} memory`,
+          true,
+          orgName,
+        )
+        result.brainRepos.push(repoName)
+      } catch {
+        // May already exist
+      }
+    }
+
+    return result
+  }
+
+  /**
+   * List an agent's brain repos (the 5 memory stores).
+   */
+  async listBrainRepos(agentName: string): Promise<GiteaRepo[]> {
+    const allRepos = await this.listRepos()
+    return allRepos.filter((r) =>
+      BRAIN_REPO_TYPES.some((type) => r.name === brainRepoName(agentName, type)),
+    )
+  }
+
+  /**
+   * List agent skills from the knowledge repo wiki.
+   */
+  async listAgentSkills(agentName: string): Promise<GiteaWikiPage[]> {
+    const knowledgeRepo = brainRepoName(agentName, 'knowledge')
+    try {
+      return await this.listWikiPages(knowledgeRepo)
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Get a specific agent skill page.
+   */
+  async getAgentSkill(
+    agentName: string,
+    skillName: string,
+  ): Promise<GiteaWikiPage> {
+    const knowledgeRepo = brainRepoName(agentName, 'knowledge')
+    return this.getWikiPage(knowledgeRepo, skillName)
+  }
+
+  /**
+   * List knowledge reviews (open PRs) for an agent's repos.
+   */
+  async listKnowledgeReviews(
+    agentName: string,
+    state: 'open' | 'closed' | 'all' = 'open',
+  ): Promise<GiteaPR[]> {
+    const knowledgeRepo = brainRepoName(agentName, 'knowledge')
+    try {
+      return await this.listPRs(knowledgeRepo, state)
+    } catch {
+      return []
+    }
   }
 
   // ---------------------------------------------------------------------------

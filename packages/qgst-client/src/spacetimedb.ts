@@ -159,10 +159,7 @@ export class SpacetimeDBClient {
     ])
   }
 
-  async eventRecordBatch(
-    tenant: string,
-    events: EventInput[],
-  ): Promise<void> {
+  async eventRecordBatch(tenant: string, events: EventInput[]): Promise<void> {
     await this.callReducer('event_record_batch', [tenant, events])
   }
 
@@ -179,10 +176,7 @@ export class SpacetimeDBClient {
     await this.callReducer('state_set', [tenant, scope, key, value])
   }
 
-  async stateSetBatch(
-    tenant: string,
-    entries: StateInput[],
-  ): Promise<void> {
+  async stateSetBatch(tenant: string, entries: StateInput[]): Promise<void> {
     await this.callReducer('state_set_batch', [tenant, entries])
   }
 
@@ -198,10 +192,7 @@ export class SpacetimeDBClient {
     await this.callReducer('graph_upsert_node', [tenant, node])
   }
 
-  async graphUpsertNodes(
-    tenant: string,
-    nodes: NodeInput[],
-  ): Promise<void> {
+  async graphUpsertNodes(tenant: string, nodes: NodeInput[]): Promise<void> {
     await this.callReducer('graph_upsert_nodes', [tenant, nodes])
   }
 
@@ -273,10 +264,7 @@ export class SpacetimeDBClient {
     await this.callReducer('ctx_update_frame', [tenant, sessionId, frame])
   }
 
-  async ctxAssemble(
-    tenant: string,
-    opts?: CtxAssembleOptions,
-  ): Promise<void> {
+  async ctxAssemble(tenant: string, opts?: CtxAssembleOptions): Promise<void> {
     await this.callReducer('ctx_assemble', [
       tenant,
       opts?.scope_graph ?? null,
@@ -506,11 +494,7 @@ export class SpacetimeDBClient {
     projectId: number,
     status: string,
   ): Promise<void> {
-    await this.callReducer('project_update_status', [
-      tenant,
-      projectId,
-      status,
-    ])
+    await this.callReducer('project_update_status', [tenant, projectId, status])
   }
 
   // ---------------------------------------------------------------------------
@@ -521,7 +505,10 @@ export class SpacetimeDBClient {
     await this.callReducer('tick_advance', [tenant])
   }
 
-  async tickSetStatus(tenant: string, status: 'active' | 'paused'): Promise<void> {
+  async tickSetStatus(
+    tenant: string,
+    status: 'active' | 'paused',
+  ): Promise<void> {
     await this.callReducer('tick_set_status', [tenant, status])
   }
 
@@ -592,10 +579,7 @@ export class SpacetimeDBClient {
     await this.callReducer('clock_tick_to_time', [tenant, tick])
   }
 
-  async clockTimeToTick(
-    tenant: string,
-    wallTimeMicros: number,
-  ): Promise<void> {
+  async clockTimeToTick(tenant: string, wallTimeMicros: number): Promise<void> {
     await this.callReducer('clock_time_to_tick', [tenant, wallTimeMicros])
   }
 
@@ -665,10 +649,7 @@ export class SpacetimeDBClient {
   // Internal
   // ---------------------------------------------------------------------------
 
-  private async callReducer(
-    _name: string,
-    _args: unknown[],
-  ): Promise<void> {
+  private async callReducer(_name: string, _args: unknown[]): Promise<void> {
     // TODO: Wire up SpacetimeDB SDK reducer calls
     // Example: this.connection.callReducer(name, args)
   }

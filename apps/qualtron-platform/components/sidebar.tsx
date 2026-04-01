@@ -11,12 +11,12 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', href: '/', icon: '/' },
-  { label: 'Agents', href: '/agents', icon: 'A' },
-  { label: 'Knowledge', href: '/knowledge', icon: 'K' },
-  { label: 'Analytics', href: '/analytics', icon: 'G' },
-  { label: 'Settings', href: '/settings', icon: 'S' },
-  { label: 'Playground', href: '/playground', icon: 'P' },
+  { label: 'Engine Dashboard', href: '/', icon: '⚡' },
+  { label: 'Agents', href: '/agents', icon: '🤖' },
+  { label: 'Knowledge Graph', href: '/knowledge', icon: '🔗' },
+  { label: 'Engine Analytics', href: '/analytics', icon: '📊' },
+  { label: 'Engine Settings', href: '/settings', icon: '⚙️' },
+  { label: 'Agent Playground', href: '/playground', icon: '💬' },
 ]
 
 export function Sidebar() {

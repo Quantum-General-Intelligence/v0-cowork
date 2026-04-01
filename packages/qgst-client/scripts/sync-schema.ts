@@ -82,7 +82,8 @@ function parseSchema(source: string): ParsedStruct[] {
     const accessor = accessorMatch ? accessorMatch[1] : undefined
 
     const fields: StructField[] = []
-    const fieldRegex = /(?:\/\/\/\s*(.*?)\n\s*)?(?:#\[.*?\]\s*)*pub\s+(\w+)\s*:\s*([^,\n]+)/g
+    const fieldRegex =
+      /(?:\/\/\/\s*(.*?)\n\s*)?(?:#\[.*?\]\s*)*pub\s+(\w+)\s*:\s*([^,\n]+)/g
 
     let fieldMatch: RegExpExecArray | null
     while ((fieldMatch = fieldRegex.exec(body)) !== null) {
@@ -145,7 +146,9 @@ function main() {
   }
 
   const structs = parseSchema(source)
-  console.log(`Parsed ${structs.length} types (${structs.filter((s) => s.isTable).length} tables)`)
+  console.log(
+    `Parsed ${structs.length} types (${structs.filter((s) => s.isTable).length} tables)`,
+  )
 
   const output = generateTypeScript(structs)
 

@@ -7,18 +7,12 @@
  * - CachedLLM (OpenAI-compatible: chat, agents, ingest, analytics)
  */
 
-import {
-  SpacetimeDBClient,
-  type SpacetimeDBConfig,
-} from './spacetimedb'
+import { SpacetimeDBClient, type SpacetimeDBConfig } from './spacetimedb'
 import {
   VersionedMemoryClient,
   type VersionedMemoryConfig,
 } from './versioned-memory'
-import {
-  CachedLLMClient,
-  type CachedLLMConfig,
-} from './cached-llm'
+import { CachedLLMClient, type CachedLLMConfig } from './cached-llm'
 
 // =============================================================================
 // Unified Client
@@ -118,6 +112,14 @@ export {
   type GiteaIssue,
   type GiteaWikiPage,
   type GiteaProject,
+  type GiteaOrg,
+  type ProvisionResult,
+  type BrainRepoType,
+  type SharedRepoName,
+  BRAIN_REPO_TYPES,
+  SHARED_REPOS,
+  brainRepoName,
+  tenantOrgName,
 } from './versioned-memory'
 
 // CachedLLM client
