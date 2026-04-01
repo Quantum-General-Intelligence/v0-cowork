@@ -4,7 +4,10 @@ import { use } from 'react'
 import Link from 'next/link'
 import { BRAIN_REPO_TYPES, type BrainRepoType } from '@qgst/client'
 
-const BRAIN_LABELS: Record<BrainRepoType, { label: string; description: string }> = {
+const BRAIN_LABELS: Record<
+  BrainRepoType,
+  { label: string; description: string }
+> = {
   episodic: {
     label: 'Episodic Memory',
     description: 'Session logs, archived events, interaction history',

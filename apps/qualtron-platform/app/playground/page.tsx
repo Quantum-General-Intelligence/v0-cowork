@@ -2,9 +2,7 @@ export default function PlaygroundPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Agent Playground
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight">Agent Playground</h1>
         <p className="text-muted-foreground">
           Chat with Q-GST Engine agents using the streaming inference API.
           Select an agent, send messages, and see responses with context from

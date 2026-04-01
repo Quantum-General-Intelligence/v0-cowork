@@ -3,7 +3,11 @@
 import { use } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { BRAIN_REPO_TYPES, brainRepoName, type BrainRepoType } from '@qgst/client'
+import {
+  BRAIN_REPO_TYPES,
+  brainRepoName,
+  type BrainRepoType,
+} from '@qgst/client'
 
 const BRAIN_LABELS: Record<BrainRepoType, string> = {
   episodic: 'Episodic Memory',

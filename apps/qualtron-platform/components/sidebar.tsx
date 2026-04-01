@@ -10,13 +10,36 @@ interface NavItem {
   icon: string
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Engine Dashboard', href: '/', icon: '⚡' },
-  { label: 'Agents', href: '/agents', icon: '🤖' },
-  { label: 'Knowledge Graph', href: '/knowledge', icon: '🔗' },
-  { label: 'Engine Analytics', href: '/analytics', icon: '📊' },
-  { label: 'Engine Settings', href: '/settings', icon: '⚙️' },
-  { label: 'Agent Playground', href: '/playground', icon: '💬' },
+interface NavSection {
+  title: string
+  items: NavItem[]
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Q-GST Engine',
+    items: [
+      { label: 'Dashboard', href: '/', icon: '⚡' },
+      { label: 'Agents', href: '/agents', icon: '🤖' },
+      { label: 'Knowledge Graph', href: '/knowledge', icon: '🔗' },
+      { label: 'Timeline', href: '/analytics', icon: '📊' },
+    ],
+  },
+  {
+    title: 'Qualtron CacheLLM',
+    items: [
+      { label: 'LLM Agents', href: '/llm/agents', icon: '🧠' },
+      { label: 'GPU Deploy', href: '/llm/deploy', icon: '🚀' },
+      { label: 'Billing & Usage', href: '/llm/billing', icon: '💳' },
+    ],
+  },
+  {
+    title: 'Workspace',
+    items: [
+      { label: 'Playground', href: '/playground', icon: '💬' },
+      { label: 'Settings', href: '/settings', icon: '⚙️' },
+    ],
+  },
 ]
 
 export function Sidebar() {
@@ -35,31 +58,40 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-2 py-3">
-        {NAV_ITEMS.map((item) => {
-          const isActive =
-            item.href === '/'
-              ? pathname === '/'
-              : pathname.startsWith(item.href)
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.title} className="mb-4">
+            <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+              {section.title}
+            </div>
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const isActive =
+                  item.href === '/'
+                    ? pathname === '/'
+                    : pathname.startsWith(item.href)
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
-              )}
-            >
-              <span className="flex h-5 w-5 items-center justify-center rounded text-xs font-mono opacity-60">
-                {item.icon}
-              </span>
-              {item.label}
-            </Link>
-          )
-        })}
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+                    )}
+                  >
+                    <span className="flex h-5 w-5 items-center justify-center text-xs">
+                      {item.icon}
+                    </span>
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}

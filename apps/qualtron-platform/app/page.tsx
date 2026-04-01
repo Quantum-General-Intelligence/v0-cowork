@@ -27,16 +27,8 @@ export default function DashboardPage() {
           subtitle="Nodes in knowledge graph"
           href="/knowledge"
         />
-        <StatCard
-          title="Episodic Events"
-          value="—"
-          subtitle="Recorded today"
-        />
-        <StatCard
-          title="Current Tick"
-          value="—"
-          subtitle="Engine epoch"
-        />
+        <StatCard title="Episodic Events" value="—" subtitle="Recorded today" />
+        <StatCard title="Current Tick" value="—" subtitle="Engine epoch" />
       </div>
 
       {/* Engine Systems */}

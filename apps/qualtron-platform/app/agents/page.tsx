@@ -107,9 +107,7 @@ export default function AgentsPage() {
 
       {filtered.length === 0 && (
         <div className="rounded-lg border border-border bg-card p-12 text-center">
-          <p className="text-muted-foreground">
-            No agents match this filter.
-          </p>
+          <p className="text-muted-foreground">No agents match this filter.</p>
         </div>
       )}
     </div>

@@ -116,7 +116,9 @@ export default function RegisterAgentPage() {
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+              onChange={(e) =>
+                setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+              }
               placeholder="alice"
               required
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
