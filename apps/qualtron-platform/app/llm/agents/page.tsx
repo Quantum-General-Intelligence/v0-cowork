@@ -52,8 +52,8 @@ export default function ModelInstancesPage() {
             Qualtron Model Instances
           </h1>
           <p className="text-muted-foreground">
-            Manage Qualtron model deployments — Quantum Hypergraph Memory
-            (QHM), CAG pipeline configuration, and GPU serving.
+            Manage Qualtron model deployments — Quantum Hypergraph Memory (QHM),
+            CAG pipeline configuration, and GPU serving.
           </p>
         </div>
         <Link

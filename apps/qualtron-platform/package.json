@@ -10,6 +10,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.0",
+    "@ai-sdk/react": "^2.0.22",
     "@qgst/client": "workspace:*",
     "@qgst/ui": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -21,6 +23,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
+    "ai": "^5.0.22",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",
