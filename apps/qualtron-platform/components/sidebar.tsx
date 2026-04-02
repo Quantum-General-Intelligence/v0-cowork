@@ -18,9 +18,7 @@ interface NavSection {
 const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Q-GST Engine',
-    items: [
-      { label: 'Dashboard', href: '/', icon: '⚡' },
-    ],
+    items: [{ label: 'Dashboard', href: '/', icon: '⚡' }],
   },
   {
     title: 'Qualtron Models',

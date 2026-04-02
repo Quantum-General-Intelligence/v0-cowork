@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface CortexStage {
   id: string
@@ -8,65 +10,51 @@ interface CortexStage {
   role: string
   description: string
   model: string | null
-  qhmStatus: 'empty' | 'uploading' | 'processing' | 'ready'
+  qhmStatus: 'empty' | 'ingesting' | 'ready' | 'error'
   qhmTokenCount: number
   qhmFileCount: number
+  qhmError: string | null
+  qhmResult: unknown | null
 }
 
-interface SpineCortexConfig {
+interface CatalogModel {
   id: string
   name: string
-  description: string
-  stages: CortexStage[]
-  status: 'draft' | 'active' | 'deploying'
-  createdAt: string
+  base_family: string
 }
+
+type UploadMethod = 'file' | 'url' | 'github'
 
 const DEFAULT_STAGES: CortexStage[] = [
   {
-    id: 'stage-1',
-    name: 'Retrieval Cortex',
-    role: 'Tier 1 — Fast QHP retrieval',
-    description:
-      'Lightweight models (0.8B–4B) for classification, rule extraction, and normalization. Runs non-thinking for fast triage from QHM.',
-    model: null,
-    qhmStatus: 'empty',
-    qhmTokenCount: 0,
-    qhmFileCount: 0,
+    id: 'retrieval', name: 'Retrieval Cortex', role: 'Tier 1 — QHP Fast Retrieval',
+    description: 'Lightweight models (Nano/Mini) for classification, rule extraction, normalization.',
+    model: null, qhmStatus: 'empty', qhmTokenCount: 0, qhmFileCount: 0, qhmError: null, qhmResult: null,
   },
   {
-    id: 'stage-2',
-    name: 'Reasoning Cortex',
-    role: 'Tier 2 — Thinker',
-    description:
-      'Mid-size model (9B) with thinking enabled. Validates evidence, checks sufficiency, reasons step-by-step with citations.',
-    model: null,
-    qhmStatus: 'empty',
-    qhmTokenCount: 0,
-    qhmFileCount: 0,
+    id: 'reasoning', name: 'Reasoning Cortex', role: 'Tier 2 — Thinker',
+    description: 'Mid-size model (Coder/Thinker) with thinking. Validates evidence, reasons step-by-step.',
+    model: null, qhmStatus: 'empty', qhmTokenCount: 0, qhmFileCount: 0, qhmError: null, qhmResult: null,
   },
   {
-    id: 'stage-3',
-    name: 'Deep Analysis Cortex',
-    role: 'Tier 3 — Enterprise',
-    description:
-      'Large model (27B–122B) for comprehensive final answers. Deep analysis with full context from Tier 1+2 output.',
-    model: null,
-    qhmStatus: 'empty',
-    qhmTokenCount: 0,
-    qhmFileCount: 0,
+    id: 'deep', name: 'Deep Analysis Cortex', role: 'Tier 3 — Enterprise',
+    description: 'Large model (Thinker/Coder Pro) for comprehensive answers with full context.',
+    model: null, qhmStatus: 'empty', qhmTokenCount: 0, qhmFileCount: 0, qhmError: null, qhmResult: null,
   },
 ]
 
-const SUPPORTED_FORMATS = '.pdf,.docx,.txt,.md,.csv,.json,.jsonl,.py,.ts,.js,.go,.java,.rs,.zip'
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function SpineCortexPage() {
-  const [configs, setConfigs] = useState<SpineCortexConfig[]>([])
-  const [activeConfig, setActiveConfig] = useState<SpineCortexConfig | null>(null)
-  const [catalogModels, setCatalogModels] = useState<{ id: string; name: string; base_family: string }[]>([])
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const [stages, setStages] = useState<CortexStage[]>(DEFAULT_STAGES.map((s) => ({ ...s })))
+  const [cortexName, setCortexName] = useState('')
+  const [catalogModels, setCatalogModels] = useState<CatalogModel[]>([])
+  const [activeStageId, setActiveStageId] = useState<string | null>(null)
+  const [uploadMethod, setUploadMethod] = useState<UploadMethod>('file')
+  const [urlInput, setUrlInput] = useState('')
+  const [githubInput, setGithubInput] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Fetch catalog for model selection
   useEffect(() => {
     fetch('/api/qinference/catalog')
       .then((r) => r.json())
@@ -74,344 +62,285 @@ export default function SpineCortexPage() {
       .catch(() => {})
   }, [])
 
-  const handleNewCortex = () => {
-    const config: SpineCortexConfig = {
-      id: `cortex-${Date.now()}`,
-      name: 'New Spine Cortex',
-      description: '',
-      stages: DEFAULT_STAGES.map((s) => ({ ...s })),
-      status: 'draft',
-      createdAt: new Date().toISOString(),
-    }
-    setConfigs((prev) => [config, ...prev])
-    setActiveConfig(config)
-  }
+  const updateStage = useCallback((id: string, updates: Partial<CortexStage>) => {
+    setStages((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)))
+  }, [])
 
-  const updateStage = (stageId: string, updates: Partial<CortexStage>) => {
-    if (!activeConfig) return
-    const updated = {
-      ...activeConfig,
-      stages: activeConfig.stages.map((s) =>
-        s.id === stageId ? { ...s, ...updates } : s,
-      ),
-    }
-    setActiveConfig(updated)
-    setConfigs((prev) =>
-      prev.map((c) => (c.id === updated.id ? updated : c)),
-    )
-  }
+  // ─── File upload ─────────────────────────────────────────────────────────
 
-  const handleFileUpload = (stageId: string, e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback(async (stageId: string, e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return
-    const count = e.target.files.length
+    updateStage(stageId, { qhmStatus: 'ingesting', qhmFileCount: e.target.files.length, qhmError: null })
 
-    updateStage(stageId, { qhmStatus: 'uploading', qhmFileCount: count })
+    const formData = new FormData()
+    for (const file of Array.from(e.target.files)) {
+      formData.append('file', file)
+    }
+    formData.append('tool', 'qhp')
 
-    // Simulate QHP processing
-    setTimeout(() => {
-      updateStage(stageId, { qhmStatus: 'processing' })
-    }, 1000)
-    setTimeout(() => {
-      updateStage(stageId, {
-        qhmStatus: 'ready',
-        qhmTokenCount: Math.floor(Math.random() * 500000) + 100000,
+    try {
+      const res = await fetch('/api/ingest', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Ingestion failed')
+      const tokens = data.output?.extraction?.rules_count
+        ? data.output.extraction.rules_count * 500
+        : estimateTokens(JSON.stringify(data.output))
+      updateStage(stageId, { qhmStatus: 'ready', qhmTokenCount: tokens, qhmResult: data.output })
+    } catch (err) {
+      updateStage(stageId, { qhmStatus: 'error', qhmError: err instanceof Error ? err.message : 'Failed' })
+    }
+  }, [updateStage])
+
+  // ─── URL ingest ──────────────────────────────────────────────────────────
+
+  const handleURLIngest = useCallback(async (stageId: string, url: string) => {
+    if (!url.trim()) return
+    updateStage(stageId, { qhmStatus: 'ingesting', qhmError: null })
+
+    try {
+      const res = await fetch('/api/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'url', source: url }),
       })
-    }, 3000)
-  }
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Ingestion failed')
+      const tokens = estimateTokens(JSON.stringify(data.output))
+      updateStage(stageId, { qhmStatus: 'ready', qhmTokenCount: tokens, qhmResult: data.output })
+    } catch (err) {
+      updateStage(stageId, { qhmStatus: 'error', qhmError: err instanceof Error ? err.message : 'Failed' })
+    }
+    setUrlInput('')
+  }, [updateStage])
 
-  const QHM_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-    empty: { label: 'No QHM', color: 'text-muted-foreground' },
-    uploading: { label: 'Uploading...', color: 'text-warning' },
-    processing: { label: 'QHP Processing...', color: 'text-primary' },
-    ready: { label: 'QHM Ready', color: 'text-accent' },
+  // ─── GitHub ingest ───────────────────────────────────────────────────────
+
+  const handleGitHubIngest = useCallback(async (stageId: string, repoUrl: string) => {
+    if (!repoUrl.trim()) return
+    updateStage(stageId, { qhmStatus: 'ingesting', qhmError: null })
+
+    try {
+      const res = await fetch('/api/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'github', source: repoUrl }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Ingestion failed')
+      const tokens = data.tokenEstimate ?? estimateTokens(data.output ?? '')
+      updateStage(stageId, { qhmStatus: 'ready', qhmTokenCount: tokens, qhmResult: data })
+    } catch (err) {
+      updateStage(stageId, { qhmStatus: 'error', qhmError: err instanceof Error ? err.message : 'Failed' })
+    }
+    setGithubInput('')
+  }, [updateStage])
+
+  const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+    empty: { label: 'No QHM', cls: 'text-muted-foreground' },
+    ingesting: { label: 'Processing...', cls: 'text-primary animate-pulse' },
+    ready: { label: 'QHM Ready', cls: 'text-accent' },
+    error: { label: 'Error', cls: 'text-destructive' },
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Spine Cortex</h1>
-          <p className="text-muted-foreground">
-            Define a MaaS (Model-as-a-Service) configuration with three
-            cognitive stages. Each cortex carries its own Quantum Hypergraph
-            Memory (QHM) partition.
-          </p>
-        </div>
-        <button
-          onClick={handleNewCortex}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          New Cortex
-        </button>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Spine Cortex</h1>
+        <p className="text-muted-foreground">
+          Define a 3-stage MaaS pipeline. Each cortex carries its own QHM
+          partition — upload files, crawl URLs, or ingest GitHub repos.
+        </p>
       </div>
 
-      {/* Config List */}
-      {configs.length === 0 && !activeConfig ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center">
-          <div className="mb-3 text-3xl">🧬</div>
-          <h3 className="text-sm font-semibold">No Spine Cortex defined</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            A Spine Cortex is a 3-stage pipeline where each cortex (specialist
-            model) carries its own QHM partition. Create one to define your MaaS
-            configuration.
-          </p>
-        </div>
-      ) : null}
+      {/* Cortex Name */}
+      <input
+        type="text"
+        value={cortexName}
+        onChange={(e) => setCortexName(e.target.value)}
+        placeholder="Cortex name (e.g. Legal Analysis Pipeline)"
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+      />
 
-      {/* Active Config Editor */}
-      {activeConfig && (
-        <div className="space-y-4">
-          {/* Name & Description */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium">
-                Cortex Name
-              </label>
-              <input
-                type="text"
-                value={activeConfig.name}
-                onChange={(e) => {
-                  const updated = { ...activeConfig, name: e.target.value }
-                  setActiveConfig(updated)
-                  setConfigs((prev) =>
-                    prev.map((c) => (c.id === updated.id ? updated : c)),
-                  )
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium">
-                Description
-              </label>
-              <input
-                type="text"
-                value={activeConfig.description}
-                onChange={(e) => {
-                  const updated = {
-                    ...activeConfig,
-                    description: e.target.value,
-                  }
-                  setActiveConfig(updated)
-                  setConfigs((prev) =>
-                    prev.map((c) => (c.id === updated.id ? updated : c)),
-                  )
-                }}
-                placeholder="e.g. Legal document analysis pipeline"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
+      {/* Three Stages */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {stages.map((stage, i) => {
+          const badge = STATUS_BADGE[stage.qhmStatus]
+          const isActive = activeStageId === stage.id
+          return (
+            <div key={stage.id} className="rounded-lg border border-border bg-card p-4">
+              {/* Header */}
+              <div className="mb-2 flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+                  {i + 1}
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">{stage.name}</h3>
+                  <p className="text-[10px] text-muted-foreground">{stage.role}</p>
+                </div>
+              </div>
+              <p className="mb-3 text-xs text-muted-foreground">{stage.description}</p>
 
-          {/* 3 Stages */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {activeConfig.stages.map((stage, i) => {
-              const statusInfo = QHM_STATUS_LABELS[stage.qhmStatus]
-              return (
-                <div
-                  key={stage.id}
-                  className="rounded-lg border border-border bg-card p-4"
+              {/* Model Selection (from real catalog) */}
+              <div className="mb-3">
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Model</label>
+                <select
+                  value={stage.model ?? ''}
+                  onChange={(e) => updateStage(stage.id, { model: e.target.value || null })}
+                  className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                 >
-                  {/* Stage Header */}
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
-                      {i + 1}
-                    </div>
+                  <option value="">Select from catalog...</option>
+                  {catalogModels.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.base_family})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* QHM Status */}
+              <div className="mb-2 flex items-center justify-between">
+                <span className={`text-xs font-medium ${badge.cls}`}>{badge.label}</span>
+                {stage.qhmTokenCount > 0 && (
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {(stage.qhmTokenCount / 1000).toFixed(0)}K tokens
+                  </span>
+                )}
+              </div>
+              {stage.qhmError && (
+                <p className="mb-2 text-[10px] text-destructive">{stage.qhmError}</p>
+              )}
+
+              {/* Upload toggle */}
+              <button
+                onClick={() => setActiveStageId(isActive ? null : stage.id)}
+                className="w-full rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+              >
+                {stage.qhmStatus === 'empty' ? 'Load QHM data →' : stage.qhmStatus === 'ready' ? 'Replace QHM →' : 'Processing...'}
+              </button>
+
+              {/* Upload Panel */}
+              {isActive && stage.qhmStatus !== 'ingesting' && (
+                <div className="mt-3 space-y-2 rounded-md border border-border bg-background p-3">
+                  {/* Method tabs */}
+                  <div className="flex gap-1">
+                    {(['file', 'url', 'github'] as UploadMethod[]).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setUploadMethod(m)}
+                        className={`rounded px-2 py-1 text-[10px] font-medium ${
+                          uploadMethod === m ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {m === 'file' ? '📄 Files' : m === 'url' ? '🔗 URL' : '🐙 GitHub'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* File upload */}
+                  {uploadMethod === 'file' && (
                     <div>
-                      <h3 className="text-sm font-semibold">{stage.name}</h3>
-                      <p className="text-[10px] text-muted-foreground">
-                        {stage.role}
-                      </p>
-                    </div>
-                  </div>
-
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    {stage.description}
-                  </p>
-
-                  {/* Model Selection */}
-                  <div className="mb-3">
-                    <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Model
-                    </label>
-                    <select
-                      value={stage.model ?? ''}
-                      onChange={(e) =>
-                        updateStage(stage.id, {
-                          model: e.target.value || null,
-                        })
-                      }
-                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs"
-                    >
-                      <option value="">Select model...</option>
-                      {catalogModels.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.base_family})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* QHM Upload */}
-                  <div className="mb-2">
-                    <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      QHM Partition
-                    </label>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs font-medium ${statusInfo.color}`}>
-                        {statusInfo.label}
-                      </span>
-                      {stage.qhmTokenCount > 0 && (
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {(stage.qhmTokenCount / 1000).toFixed(0)}K tokens ·{' '}
-                          {stage.qhmFileCount} files
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Upload Button */}
-                  <button
-                    onClick={() => fileInputRefs.current[stage.id]?.click()}
-                    disabled={
-                      stage.qhmStatus === 'uploading' ||
-                      stage.qhmStatus === 'processing'
-                    }
-                    className="w-full rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-50"
-                  >
-                    {stage.qhmStatus === 'empty'
-                      ? 'Upload QHM files for this cortex'
-                      : stage.qhmStatus === 'ready'
-                        ? 'Replace QHM files'
-                        : 'Processing...'}
-                  </button>
-                  <input
-                    ref={(el) => {
-                      fileInputRefs.current[stage.id] = el
-                    }}
-                    type="file"
-                    multiple
-                    accept={SUPPORTED_FORMATS}
-                    onChange={(e) => handleFileUpload(stage.id, e)}
-                    className="hidden"
-                  />
-
-                  {/* Progress for processing */}
-                  {(stage.qhmStatus === 'uploading' ||
-                    stage.qhmStatus === 'processing') && (
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full animate-pulse rounded-full bg-primary transition-all"
-                        style={{
-                          width:
-                            stage.qhmStatus === 'uploading' ? '30%' : '70%',
-                        }}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full rounded border border-dashed border-border py-3 text-xs text-muted-foreground hover:border-primary/50"
+                      >
+                        Drop files or click — PDF, DOCX, TXT, MD, CSV, JSON, code
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept=".pdf,.docx,.txt,.md,.csv,.json,.jsonl,.py,.ts,.js,.go,.java,.rs,.zip"
+                        onChange={(e) => handleFileUpload(stage.id, e)}
+                        className="hidden"
                       />
                     </div>
                   )}
-                </div>
-              )
-            })}
-          </div>
 
-          {/* Pipeline visualization */}
-          <div className="rounded-lg border border-border bg-card p-4">
-            <h3 className="mb-3 text-sm font-semibold">
-              CAG Pipeline Flow
-            </h3>
-            <div className="flex items-center justify-center gap-2">
-              {activeConfig.stages.map((stage, i) => (
-                <div key={stage.id} className="flex items-center gap-2">
-                  {i > 0 && (
-                    <span className="text-lg text-muted-foreground">→</span>
+                  {/* URL ingest */}
+                  {uploadMethod === 'url' && (
+                    <form onSubmit={(e: FormEvent) => { e.preventDefault(); handleURLIngest(stage.id, urlInput) }} className="flex gap-2">
+                      <input
+                        type="url"
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        placeholder="https://example.com/document"
+                        className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                      />
+                      <button type="submit" className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-medium text-primary-foreground">
+                        Ingest
+                      </button>
+                    </form>
                   )}
-                  <div
-                    className={`rounded-lg border p-3 text-center ${
-                      stage.model && stage.qhmStatus === 'ready'
-                        ? 'border-accent/50 bg-accent/5'
-                        : stage.model
-                          ? 'border-primary/50 bg-primary/5'
-                          : 'border-border bg-muted/50'
-                    }`}
-                  >
-                    <div className="text-xs font-bold">
-                      {stage.model
-                        ? catalogModels.find((m) => m.id === stage.model)
-                            ?.name ?? stage.model
-                        : 'Not set'}
-                    </div>
-                    <div className="mt-0.5 text-[10px] text-muted-foreground">
-                      {stage.name}
-                    </div>
-                    {stage.qhmStatus === 'ready' && (
-                      <div className="mt-0.5 text-[10px] font-medium text-accent">
-                        QHM ✓
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Deploy button */}
-          <div className="flex gap-3">
-            <button
-              disabled={activeConfig.stages.some((s) => !s.model)}
-              className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            >
-              Deploy Spine Cortex
-            </button>
-            <span className="self-center text-xs text-muted-foreground">
-              {activeConfig.stages.filter((s) => s.model).length}/3 models
-              assigned
-              {' · '}
-              {activeConfig.stages.filter((s) => s.qhmStatus === 'ready').length}
-              /3 QHM loaded
-            </span>
-          </div>
-        </div>
-      )}
+                  {/* GitHub ingest */}
+                  {uploadMethod === 'github' && (
+                    <form onSubmit={(e: FormEvent) => { e.preventDefault(); handleGitHubIngest(stage.id, githubInput) }} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={githubInput}
+                        onChange={(e) => setGithubInput(e.target.value)}
+                        placeholder="https://github.com/user/repo"
+                        className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                      />
+                      <button type="submit" className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-medium text-primary-foreground">
+                        Ingest
+                      </button>
+                    </form>
+                  )}
 
-      {/* Existing configs */}
-      {configs.length > 1 && (
-        <div>
-          <h2 className="mb-3 text-lg font-semibold">
-            Saved Configurations
-          </h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {configs
-              .filter((c) => c.id !== activeConfig?.id)
-              .map((config) => (
-                <button
-                  key={config.id}
-                  onClick={() => setActiveConfig(config)}
-                  className="rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-primary/50"
-                >
-                  <h3 className="text-sm font-semibold">{config.name}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {config.description || 'No description'}
+                  <p className="text-[10px] text-muted-foreground">
+                    {uploadMethod === 'file' && 'Files processed through QHP-CORE (classify → extract → normalize)'}
+                    {uploadMethod === 'url' && 'URL content fetched and processed through QHP-CORE pipeline'}
+                    {uploadMethod === 'github' && 'Repository digested via gitingest, then processed through QHP-CORE'}
                   </p>
-                  <div className="mt-2 flex gap-1">
-                    {config.stages.map((s, i) => (
-                      <span
-                        key={s.id}
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-mono ${
-                          s.model
-                            ? 'bg-primary/20 text-primary'
-                            : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        T{i + 1}
-                        {s.qhmStatus === 'ready' ? ' ✓' : ''}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              ))}
-          </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Pipeline Flow */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <h3 className="mb-3 text-sm font-semibold">CAG Pipeline Flow</h3>
+        <div className="flex items-center justify-center gap-2">
+          {stages.map((stage, i) => (
+            <div key={stage.id} className="flex items-center gap-2">
+              {i > 0 && <span className="text-lg text-muted-foreground">→</span>}
+              <div className={`rounded-lg border p-3 text-center ${
+                stage.model && stage.qhmStatus === 'ready'
+                  ? 'border-accent/50 bg-accent/5'
+                  : stage.model
+                    ? 'border-primary/50 bg-primary/5'
+                    : 'border-border bg-muted/50'
+              }`}>
+                <div className="text-xs font-bold">
+                  {stage.model ? catalogModels.find((m) => m.id === stage.model)?.name ?? stage.model : 'Not set'}
+                </div>
+                <div className="mt-0.5 text-[10px] text-muted-foreground">{stage.name}</div>
+                {stage.qhmStatus === 'ready' && <div className="mt-0.5 text-[10px] font-medium text-accent">QHM ✓</div>}
+                {stage.qhmStatus === 'ingesting' && <div className="mt-0.5 text-[10px] animate-pulse text-primary">Processing...</div>}
+              </div>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
+
+      {/* Deploy */}
+      <div className="flex gap-3">
+        <button
+          disabled={stages.some((s) => !s.model)}
+          className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          Deploy Spine Cortex
+        </button>
+        <span className="self-center text-xs text-muted-foreground">
+          {stages.filter((s) => s.model).length}/3 models ·{' '}
+          {stages.filter((s) => s.qhmStatus === 'ready').length}/3 QHM loaded
+        </span>
+      </div>
     </div>
   )
+}
+
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4)
 }

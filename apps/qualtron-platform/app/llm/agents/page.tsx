@@ -1,154 +1,142 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import type { LLMAgent } from '@/lib/database.types'
 
-// Mock data — replaced by Supabase + inference backend sync
-const MOCK_INSTANCES: LLMAgent[] = [
-  {
-    id: '1',
-    team_id: 't1',
-    engine_connection_id: 'ec1',
-    cachedllm_agent_id: 'qualtron-9b-600k-support',
-    name: 'Qualtron-9B-600K',
-    description: 'Customer support with product QHM loaded',
-    system_prompt: 'You are a helpful support agent.',
-    quality: 'max',
-    mode: 'hosted',
-    temperature: 0.7,
-    max_tokens: 2048,
-    kb_token_count: 620000,
-    kb_file_count: 12,
-    kb_strategy: 'single_pass',
-    kb_last_updated: new Date().toISOString(),
-    deploy_provider: null,
-    deploy_pod_id: null,
-    deploy_endpoint: null,
-    deploy_gpu_tier: null,
-    deploy_status: null,
-    deploy_cost_per_hour: null,
-    api_keys_count: 2,
-    requests_today: 3500,
-    tokens_today: 450000,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-]
+interface DeployedModel {
+  id: string
+  variant_id: string
+  name: string
+  status: string
+  base_family: string
+  context_tokens: number
+  vram_gb: number
+  gpu_count: number
+  total_requests: number
+  total_tokens: number
+}
 
-const MODEL_TIERS: Record<string, string> = {
-  max: 'Enterprise',
-  balanced: 'Pro',
+const STATUS_COLORS: Record<string, string> = {
+  ready: 'bg-success/20 text-success',
+  loading: 'bg-warning/20 text-warning',
+  queued: 'bg-muted text-muted-foreground',
+  error: 'bg-destructive/20 text-destructive',
+  stopped: 'bg-muted text-muted-foreground',
 }
 
 export default function ModelInstancesPage() {
-  const [instances] = useState<LLMAgent[]>(MOCK_INSTANCES)
+  const [models, setModels] = useState<DeployedModel[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/qinference/models')
+      .then((r) => r.json())
+      .then((d) => setModels(d.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Qualtron Model Instances
+            Model Instances
           </h1>
           <p className="text-muted-foreground">
-            Manage Qualtron model deployments — Quantum Hypergraph Memory (QHM),
-            CAG pipeline configuration, and GPU serving.
+            Deployed Qualtron models running on GPU. Deploy new models from the
+            catalog or configure a Spine Cortex pipeline.
           </p>
         </div>
-        <Link
-          href="/llm/agents/new"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          Create Instance
-        </Link>
-      </div>
-
-      {/* Model Cards */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {instances.map((inst) => (
-          <Link key={inst.id} href={`/llm/agents/${inst.cachedllm_agent_id}`}>
-            <div className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary/50">
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-card-foreground">
-                    {inst.name}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {inst.description}
-                  </p>
-                </div>
-                <div className="flex gap-1.5">
-                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
-                    {MODEL_TIERS[inst.quality] ?? inst.quality}
-                  </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    {inst.mode}
-                  </span>
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-4 gap-3">
-                <div>
-                  <p className="text-[10px] font-medium text-muted-foreground">
-                    Requests
-                  </p>
-                  <p className="text-sm font-bold text-card-foreground">
-                    {inst.requests_today.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-medium text-muted-foreground">
-                    Tokens
-                  </p>
-                  <p className="text-sm font-bold text-card-foreground">
-                    {(inst.tokens_today / 1000).toFixed(0)}k
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-medium text-muted-foreground">
-                    QHM Size
-                  </p>
-                  <p className="text-sm font-bold text-card-foreground">
-                    {inst.kb_token_count > 0
-                      ? `${(inst.kb_token_count / 1000).toFixed(0)}k`
-                      : 'No QHM'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-medium text-muted-foreground">
-                    API Keys
-                  </p>
-                  <p className="text-sm font-bold text-card-foreground">
-                    {inst.api_keys_count}
-                  </p>
-                </div>
-              </div>
-
-              {/* CAG Pipeline */}
-              <div className="mt-3 flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground">
-                  CAG Pipeline:
-                </span>
-                {['0.8B', '2B', '4B', '9B'].map((stage) => (
-                  <span
-                    key={stage}
-                    className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-mono text-accent"
-                  >
-                    {stage}
-                  </span>
-                ))}
-                {inst.quality === 'max' && (
-                  <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-mono text-primary">
-                    122B
-                  </span>
-                )}
-              </div>
-            </div>
+        <div className="flex gap-2">
+          <Link
+            href="/llm/cortex"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            New Cortex
           </Link>
-        ))}
+          <Link
+            href="/llm/deploy"
+            className="rounded-md bg-muted px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/80"
+          >
+            Deploy Catalog
+          </Link>
+        </div>
       </div>
+
+      {loading ? (
+        <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          Loading deployed models from Q-Inference...
+        </div>
+      ) : models.length === 0 ? (
+        <div className="rounded-lg border border-border bg-card p-12 text-center">
+          <div className="mb-3 text-3xl">🧠</div>
+          <h3 className="text-sm font-semibold">No models deployed</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Deploy a model from the{' '}
+            <Link href="/llm/deploy" className="text-primary hover:underline">
+              catalog
+            </Link>{' '}
+            or create a{' '}
+            <Link href="/llm/cortex" className="text-primary hover:underline">
+              Spine Cortex
+            </Link>{' '}
+            pipeline.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {models.map((m) => (
+            <div
+              key={m.id}
+              className="rounded-lg border border-border bg-card p-4"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">{m.name}</h3>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_COLORS[m.status] ?? 'bg-muted text-muted-foreground'}`}
+                >
+                  {m.status}
+                </span>
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Family</span>
+                  <span className="font-mono">{m.base_family}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Context</span>
+                  <span className="font-mono">
+                    {(m.context_tokens / 1000).toFixed(0)}K
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>VRAM</span>
+                  <span className="font-mono">{m.vram_gb} GB</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>GPUs</span>
+                  <span className="font-mono">{m.gpu_count}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Requests</span>
+                  <span className="font-mono">
+                    {m.total_requests.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+              {m.status === 'ready' && (
+                <Link
+                  href="/playground"
+                  className="mt-3 inline-block rounded-md bg-primary/10 px-3 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/20"
+                >
+                  Chat in Playground →
+                </Link>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
