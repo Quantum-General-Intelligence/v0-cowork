@@ -242,12 +242,16 @@ export default function SpineCortexPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium">Agent Behavior</label>
+          <label className="mb-1 block text-xs font-medium">
+            Agent Behavior
+          </label>
           <div className="flex flex-wrap gap-1.5">
             {CAG_PROMPT_TEMPLATES.map((t) => (
               <button
                 key={t.id}
-                onClick={() => {/* stored in deploy config */}}
+                onClick={() => {
+                  /* stored in deploy config */
+                }}
                 className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] transition-colors hover:border-primary/50"
                 title={t.description}
               >
