@@ -40,9 +40,7 @@ export default function ModelInstancesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Model Instances
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">Model Instances</h1>
           <p className="text-muted-foreground">
             Deployed Qualtron models running on GPU. Deploy new models from the
             catalog or configure a Spine Cortex pipeline.

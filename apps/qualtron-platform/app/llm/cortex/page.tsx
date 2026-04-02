@@ -1,6 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react'
+import Link from 'next/link'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -27,26 +35,52 @@ type UploadMethod = 'file' | 'url' | 'github'
 
 const DEFAULT_STAGES: CortexStage[] = [
   {
-    id: 'retrieval', name: 'Retrieval Cortex', role: 'Tier 1 — QHP Fast Retrieval',
-    description: 'Lightweight models (Nano/Mini) for classification, rule extraction, normalization.',
-    model: null, qhmStatus: 'empty', qhmTokenCount: 0, qhmFileCount: 0, qhmError: null, qhmResult: null,
+    id: 'retrieval',
+    name: 'Retrieval Cortex',
+    role: 'Tier 1 — QHP Fast Retrieval',
+    description:
+      'Lightweight models (Nano/Mini) for classification, rule extraction, normalization.',
+    model: null,
+    qhmStatus: 'empty',
+    qhmTokenCount: 0,
+    qhmFileCount: 0,
+    qhmError: null,
+    qhmResult: null,
   },
   {
-    id: 'reasoning', name: 'Reasoning Cortex', role: 'Tier 2 — Thinker',
-    description: 'Mid-size model (Coder/Thinker) with thinking. Validates evidence, reasons step-by-step.',
-    model: null, qhmStatus: 'empty', qhmTokenCount: 0, qhmFileCount: 0, qhmError: null, qhmResult: null,
+    id: 'reasoning',
+    name: 'Reasoning Cortex',
+    role: 'Tier 2 — Thinker',
+    description:
+      'Mid-size model (Coder/Thinker) with thinking. Validates evidence, reasons step-by-step.',
+    model: null,
+    qhmStatus: 'empty',
+    qhmTokenCount: 0,
+    qhmFileCount: 0,
+    qhmError: null,
+    qhmResult: null,
   },
   {
-    id: 'deep', name: 'Deep Analysis Cortex', role: 'Tier 3 — Enterprise',
-    description: 'Large model (Thinker/Coder Pro) for comprehensive answers with full context.',
-    model: null, qhmStatus: 'empty', qhmTokenCount: 0, qhmFileCount: 0, qhmError: null, qhmResult: null,
+    id: 'deep',
+    name: 'Deep Analysis Cortex',
+    role: 'Tier 3 — Enterprise',
+    description:
+      'Large model (Thinker/Coder Pro) for comprehensive answers with full context.',
+    model: null,
+    qhmStatus: 'empty',
+    qhmTokenCount: 0,
+    qhmFileCount: 0,
+    qhmError: null,
+    qhmResult: null,
   },
 ]
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function SpineCortexPage() {
-  const [stages, setStages] = useState<CortexStage[]>(DEFAULT_STAGES.map((s) => ({ ...s })))
+  const [stages, setStages] = useState<CortexStage[]>(
+    DEFAULT_STAGES.map((s) => ({ ...s })),
+  )
   const [cortexName, setCortexName] = useState('')
   const [catalogModels, setCatalogModels] = useState<CatalogModel[]>([])
   const [activeStageId, setActiveStageId] = useState<string | null>(null)
@@ -62,78 +96,120 @@ export default function SpineCortexPage() {
       .catch(() => {})
   }, [])
 
-  const updateStage = useCallback((id: string, updates: Partial<CortexStage>) => {
-    setStages((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)))
-  }, [])
+  const updateStage = useCallback(
+    (id: string, updates: Partial<CortexStage>) => {
+      setStages((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+      )
+    },
+    [],
+  )
 
   // ─── File upload ─────────────────────────────────────────────────────────
 
-  const handleFileUpload = useCallback(async (stageId: string, e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.length) return
-    updateStage(stageId, { qhmStatus: 'ingesting', qhmFileCount: e.target.files.length, qhmError: null })
+  const handleFileUpload = useCallback(
+    async (stageId: string, e: ChangeEvent<HTMLInputElement>) => {
+      if (!e.target.files?.length) return
+      updateStage(stageId, {
+        qhmStatus: 'ingesting',
+        qhmFileCount: e.target.files.length,
+        qhmError: null,
+      })
 
-    const formData = new FormData()
-    for (const file of Array.from(e.target.files)) {
-      formData.append('file', file)
-    }
-    formData.append('tool', 'qhp')
+      const formData = new FormData()
+      for (const file of Array.from(e.target.files)) {
+        formData.append('file', file)
+      }
+      formData.append('tool', 'qhp')
 
-    try {
-      const res = await fetch('/api/ingest', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Ingestion failed')
-      const tokens = data.output?.extraction?.rules_count
-        ? data.output.extraction.rules_count * 500
-        : estimateTokens(JSON.stringify(data.output))
-      updateStage(stageId, { qhmStatus: 'ready', qhmTokenCount: tokens, qhmResult: data.output })
-    } catch (err) {
-      updateStage(stageId, { qhmStatus: 'error', qhmError: err instanceof Error ? err.message : 'Failed' })
-    }
-  }, [updateStage])
+      try {
+        const res = await fetch('/api/ingest', {
+          method: 'POST',
+          body: formData,
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Ingestion failed')
+        const tokens = data.output?.extraction?.rules_count
+          ? data.output.extraction.rules_count * 500
+          : estimateTokens(JSON.stringify(data.output))
+        updateStage(stageId, {
+          qhmStatus: 'ready',
+          qhmTokenCount: tokens,
+          qhmResult: data.output,
+        })
+      } catch (err) {
+        updateStage(stageId, {
+          qhmStatus: 'error',
+          qhmError: err instanceof Error ? err.message : 'Failed',
+        })
+      }
+    },
+    [updateStage],
+  )
 
   // ─── URL ingest ──────────────────────────────────────────────────────────
 
-  const handleURLIngest = useCallback(async (stageId: string, url: string) => {
-    if (!url.trim()) return
-    updateStage(stageId, { qhmStatus: 'ingesting', qhmError: null })
+  const handleURLIngest = useCallback(
+    async (stageId: string, url: string) => {
+      if (!url.trim()) return
+      updateStage(stageId, { qhmStatus: 'ingesting', qhmError: null })
 
-    try {
-      const res = await fetch('/api/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'url', source: url }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Ingestion failed')
-      const tokens = estimateTokens(JSON.stringify(data.output))
-      updateStage(stageId, { qhmStatus: 'ready', qhmTokenCount: tokens, qhmResult: data.output })
-    } catch (err) {
-      updateStage(stageId, { qhmStatus: 'error', qhmError: err instanceof Error ? err.message : 'Failed' })
-    }
-    setUrlInput('')
-  }, [updateStage])
+      try {
+        const res = await fetch('/api/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method: 'url', source: url }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Ingestion failed')
+        const tokens = estimateTokens(JSON.stringify(data.output))
+        updateStage(stageId, {
+          qhmStatus: 'ready',
+          qhmTokenCount: tokens,
+          qhmResult: data.output,
+        })
+      } catch (err) {
+        updateStage(stageId, {
+          qhmStatus: 'error',
+          qhmError: err instanceof Error ? err.message : 'Failed',
+        })
+      }
+      setUrlInput('')
+    },
+    [updateStage],
+  )
 
   // ─── GitHub ingest ───────────────────────────────────────────────────────
 
-  const handleGitHubIngest = useCallback(async (stageId: string, repoUrl: string) => {
-    if (!repoUrl.trim()) return
-    updateStage(stageId, { qhmStatus: 'ingesting', qhmError: null })
+  const handleGitHubIngest = useCallback(
+    async (stageId: string, repoUrl: string) => {
+      if (!repoUrl.trim()) return
+      updateStage(stageId, { qhmStatus: 'ingesting', qhmError: null })
 
-    try {
-      const res = await fetch('/api/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'github', source: repoUrl }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Ingestion failed')
-      const tokens = data.tokenEstimate ?? estimateTokens(data.output ?? '')
-      updateStage(stageId, { qhmStatus: 'ready', qhmTokenCount: tokens, qhmResult: data })
-    } catch (err) {
-      updateStage(stageId, { qhmStatus: 'error', qhmError: err instanceof Error ? err.message : 'Failed' })
-    }
-    setGithubInput('')
-  }, [updateStage])
+      try {
+        const res = await fetch('/api/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method: 'github', source: repoUrl }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Ingestion failed')
+        const tokens = data.tokenEstimate ?? estimateTokens(data.output ?? '')
+        updateStage(stageId, {
+          qhmStatus: 'ready',
+          qhmTokenCount: tokens,
+          qhmResult: data,
+        })
+      } catch (err) {
+        updateStage(stageId, {
+          qhmStatus: 'error',
+          qhmError: err instanceof Error ? err.message : 'Failed',
+        })
+      }
+      setGithubInput('')
+    },
+    [updateStage],
+  )
 
   const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
     empty: { label: 'No QHM', cls: 'text-muted-foreground' },
@@ -167,7 +243,10 @@ export default function SpineCortexPage() {
           const badge = STATUS_BADGE[stage.qhmStatus]
           const isActive = activeStageId === stage.id
           return (
-            <div key={stage.id} className="rounded-lg border border-border bg-card p-4">
+            <div
+              key={stage.id}
+              className="rounded-lg border border-border bg-card p-4"
+            >
               {/* Header */}
               <div className="mb-2 flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
@@ -175,29 +254,41 @@ export default function SpineCortexPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold">{stage.name}</h3>
-                  <p className="text-[10px] text-muted-foreground">{stage.role}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {stage.role}
+                  </p>
                 </div>
               </div>
-              <p className="mb-3 text-xs text-muted-foreground">{stage.description}</p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                {stage.description}
+              </p>
 
               {/* Model Selection (from real catalog) */}
               <div className="mb-3">
-                <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Model</label>
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Model
+                </label>
                 <select
                   value={stage.model ?? ''}
-                  onChange={(e) => updateStage(stage.id, { model: e.target.value || null })}
+                  onChange={(e) =>
+                    updateStage(stage.id, { model: e.target.value || null })
+                  }
                   className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                 >
                   <option value="">Select from catalog...</option>
                   {catalogModels.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name} ({m.base_family})</option>
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.base_family})
+                    </option>
                   ))}
                 </select>
               </div>
 
               {/* QHM Status */}
               <div className="mb-2 flex items-center justify-between">
-                <span className={`text-xs font-medium ${badge.cls}`}>{badge.label}</span>
+                <span className={`text-xs font-medium ${badge.cls}`}>
+                  {badge.label}
+                </span>
                 {stage.qhmTokenCount > 0 && (
                   <span className="font-mono text-[10px] text-muted-foreground">
                     {(stage.qhmTokenCount / 1000).toFixed(0)}K tokens
@@ -205,7 +296,9 @@ export default function SpineCortexPage() {
                 )}
               </div>
               {stage.qhmError && (
-                <p className="mb-2 text-[10px] text-destructive">{stage.qhmError}</p>
+                <p className="mb-2 text-[10px] text-destructive">
+                  {stage.qhmError}
+                </p>
               )}
 
               {/* Upload toggle */}
@@ -213,7 +306,11 @@ export default function SpineCortexPage() {
                 onClick={() => setActiveStageId(isActive ? null : stage.id)}
                 className="w-full rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
               >
-                {stage.qhmStatus === 'empty' ? 'Load QHM data →' : stage.qhmStatus === 'ready' ? 'Replace QHM →' : 'Processing...'}
+                {stage.qhmStatus === 'empty'
+                  ? 'Load QHM data →'
+                  : stage.qhmStatus === 'ready'
+                    ? 'Replace QHM →'
+                    : 'Processing...'}
               </button>
 
               {/* Upload Panel */}
@@ -226,10 +323,16 @@ export default function SpineCortexPage() {
                         key={m}
                         onClick={() => setUploadMethod(m)}
                         className={`rounded px-2 py-1 text-[10px] font-medium ${
-                          uploadMethod === m ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                          uploadMethod === m
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground'
                         }`}
                       >
-                        {m === 'file' ? '📄 Files' : m === 'url' ? '🔗 URL' : '🐙 GitHub'}
+                        {m === 'file'
+                          ? '📄 Files'
+                          : m === 'url'
+                            ? '🔗 URL'
+                            : '🐙 GitHub'}
                       </button>
                     ))}
                   </div>
@@ -241,7 +344,8 @@ export default function SpineCortexPage() {
                         onClick={() => fileInputRef.current?.click()}
                         className="w-full rounded border border-dashed border-border py-3 text-xs text-muted-foreground hover:border-primary/50"
                       >
-                        Drop files or click — PDF, DOCX, TXT, MD, CSV, JSON, code
+                        Drop files or click — PDF, DOCX, TXT, MD, CSV, JSON,
+                        code
                       </button>
                       <input
                         ref={fileInputRef}
@@ -256,7 +360,13 @@ export default function SpineCortexPage() {
 
                   {/* URL ingest */}
                   {uploadMethod === 'url' && (
-                    <form onSubmit={(e: FormEvent) => { e.preventDefault(); handleURLIngest(stage.id, urlInput) }} className="flex gap-2">
+                    <form
+                      onSubmit={(e: FormEvent) => {
+                        e.preventDefault()
+                        handleURLIngest(stage.id, urlInput)
+                      }}
+                      className="flex gap-2"
+                    >
                       <input
                         type="url"
                         value={urlInput}
@@ -264,7 +374,10 @@ export default function SpineCortexPage() {
                         placeholder="https://example.com/document"
                         className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                       />
-                      <button type="submit" className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-medium text-primary-foreground">
+                      <button
+                        type="submit"
+                        className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-medium text-primary-foreground"
+                      >
                         Ingest
                       </button>
                     </form>
@@ -272,7 +385,13 @@ export default function SpineCortexPage() {
 
                   {/* GitHub ingest */}
                   {uploadMethod === 'github' && (
-                    <form onSubmit={(e: FormEvent) => { e.preventDefault(); handleGitHubIngest(stage.id, githubInput) }} className="flex gap-2">
+                    <form
+                      onSubmit={(e: FormEvent) => {
+                        e.preventDefault()
+                        handleGitHubIngest(stage.id, githubInput)
+                      }}
+                      className="flex gap-2"
+                    >
                       <input
                         type="text"
                         value={githubInput}
@@ -280,16 +399,22 @@ export default function SpineCortexPage() {
                         placeholder="https://github.com/user/repo"
                         className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs"
                       />
-                      <button type="submit" className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-medium text-primary-foreground">
+                      <button
+                        type="submit"
+                        className="rounded-md bg-primary px-3 py-1.5 text-[10px] font-medium text-primary-foreground"
+                      >
                         Ingest
                       </button>
                     </form>
                   )}
 
                   <p className="text-[10px] text-muted-foreground">
-                    {uploadMethod === 'file' && 'Files processed through QHP-CORE (classify → extract → normalize)'}
-                    {uploadMethod === 'url' && 'URL content fetched and processed through QHP-CORE pipeline'}
-                    {uploadMethod === 'github' && 'Repository digested via gitingest, then processed through QHP-CORE'}
+                    {uploadMethod === 'file' &&
+                      'Files processed through QHP-CORE (classify → extract → normalize)'}
+                    {uploadMethod === 'url' &&
+                      'URL content fetched and processed through QHP-CORE pipeline'}
+                    {uploadMethod === 'github' &&
+                      'Repository digested via gitingest, then processed through QHP-CORE'}
                   </p>
                 </div>
               )}
@@ -304,20 +429,37 @@ export default function SpineCortexPage() {
         <div className="flex items-center justify-center gap-2">
           {stages.map((stage, i) => (
             <div key={stage.id} className="flex items-center gap-2">
-              {i > 0 && <span className="text-lg text-muted-foreground">→</span>}
-              <div className={`rounded-lg border p-3 text-center ${
-                stage.model && stage.qhmStatus === 'ready'
-                  ? 'border-accent/50 bg-accent/5'
-                  : stage.model
-                    ? 'border-primary/50 bg-primary/5'
-                    : 'border-border bg-muted/50'
-              }`}>
+              {i > 0 && (
+                <span className="text-lg text-muted-foreground">→</span>
+              )}
+              <div
+                className={`rounded-lg border p-3 text-center ${
+                  stage.model && stage.qhmStatus === 'ready'
+                    ? 'border-accent/50 bg-accent/5'
+                    : stage.model
+                      ? 'border-primary/50 bg-primary/5'
+                      : 'border-border bg-muted/50'
+                }`}
+              >
                 <div className="text-xs font-bold">
-                  {stage.model ? catalogModels.find((m) => m.id === stage.model)?.name ?? stage.model : 'Not set'}
+                  {stage.model
+                    ? (catalogModels.find((m) => m.id === stage.model)?.name ??
+                      stage.model)
+                    : 'Not set'}
                 </div>
-                <div className="mt-0.5 text-[10px] text-muted-foreground">{stage.name}</div>
-                {stage.qhmStatus === 'ready' && <div className="mt-0.5 text-[10px] font-medium text-accent">QHM ✓</div>}
-                {stage.qhmStatus === 'ingesting' && <div className="mt-0.5 text-[10px] animate-pulse text-primary">Processing...</div>}
+                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                  {stage.name}
+                </div>
+                {stage.qhmStatus === 'ready' && (
+                  <div className="mt-0.5 text-[10px] font-medium text-accent">
+                    QHM ✓
+                  </div>
+                )}
+                {stage.qhmStatus === 'ingesting' && (
+                  <div className="mt-0.5 text-[10px] animate-pulse text-primary">
+                    Processing...
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -325,18 +467,107 @@ export default function SpineCortexPage() {
       </div>
 
       {/* Deploy */}
+      <DeploySection stages={stages} cortexName={cortexName} catalogModels={catalogModels} />
+    </div>
+  )
+}
+
+function DeploySection({ stages, cortexName, catalogModels }: {
+  stages: CortexStage[]
+  cortexName: string
+  catalogModels: CatalogModel[]
+}) {
+  const [deploying, setDeploying] = useState(false)
+  const [deployStatus, setDeployStatus] = useState<string | null>(null)
+  const [deployedIds, setDeployedIds] = useState<string[]>([])
+
+  const allModelsSet = stages.every((s) => s.model)
+
+  const handleDeploy = async () => {
+    setDeploying(true)
+    setDeployStatus('Deploying 3 models...')
+    const ids: string[] = []
+
+    try {
+      for (let i = 0; i < stages.length; i++) {
+        const stage = stages[i]
+        if (!stage.model) continue
+        const name = `${cortexName || 'Cortex'} — ${stage.name}`
+        setDeployStatus(`Deploying ${i + 1}/3: ${stage.name}...`)
+
+        const res = await fetch('/api/qinference/models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variant_id: stage.model, name }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? `Failed to deploy ${stage.name}`)
+        ids.push(data.id)
+      }
+
+      setDeployedIds(ids)
+      setDeployStatus('All 3 cortexes deployed!')
+
+      // Save config to localStorage
+      const config = {
+        name: cortexName,
+        stages: stages.map((s) => ({
+          id: s.id, name: s.name, model: s.model,
+          modelName: catalogModels.find((m) => m.id === s.model)?.name,
+          qhmTokenCount: s.qhmTokenCount,
+        })),
+        deployedModelIds: ids,
+        createdAt: new Date().toISOString(),
+      }
+      const saved = JSON.parse(localStorage.getItem('cortex-configs') ?? '[]')
+      saved.unshift(config)
+      localStorage.setItem('cortex-configs', JSON.stringify(saved.slice(0, 20)))
+
+    } catch (err) {
+      setDeployStatus(`Error: ${err instanceof Error ? err.message : 'Deploy failed'}`)
+    } finally {
+      setDeploying(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
       <div className="flex gap-3">
         <button
-          disabled={stages.some((s) => !s.model)}
+          onClick={handleDeploy}
+          disabled={!allModelsSet || deploying}
           className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          Deploy Spine Cortex
+          {deploying ? 'Deploying...' : 'Deploy Spine Cortex'}
         </button>
         <span className="self-center text-xs text-muted-foreground">
           {stages.filter((s) => s.model).length}/3 models ·{' '}
           {stages.filter((s) => s.qhmStatus === 'ready').length}/3 QHM loaded
         </span>
       </div>
+
+      {deployStatus && (
+        <div className={`rounded-lg border p-3 text-sm ${
+          deployedIds.length === 3
+            ? 'border-accent/50 bg-accent/10 text-accent'
+            : deploying
+              ? 'border-primary/50 bg-primary/10 text-primary'
+              : 'border-destructive/50 bg-destructive/10 text-destructive'
+        }`}>
+          {deployStatus}
+        </div>
+      )}
+
+      {deployedIds.length === 3 && (
+        <div className="flex gap-3">
+          <Link href="/playground" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+            Chat in Playground
+          </Link>
+          <Link href="/llm/agents" className="rounded-md bg-muted px-4 py-2 text-sm text-muted-foreground">
+            View Instances
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

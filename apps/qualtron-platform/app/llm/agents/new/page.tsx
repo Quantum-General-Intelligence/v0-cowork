@@ -1,528 +1,288 @@
 'use client'
 
-import {
-  useCallback,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-} from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import Link from 'next/link'
 
-type Step = 'config' | 'upload' | 'processing' | 'done'
+type Step = 'model' | 'config' | 'upload' | 'processing' | 'deploy' | 'done'
 
-const SUPPORTED_FORMATS = [
-  '.pdf',
-  '.docx',
-  '.txt',
-  '.md',
-  '.csv',
-  '.json',
-  '.jsonl',
-  '.py',
-  '.ts',
-  '.tsx',
-  '.js',
-  '.jsx',
-  '.go',
-  '.java',
-  '.rs',
-  '.rb',
-  '.php',
-  '.swift',
-  '.kt',
-  '.c',
-  '.cpp',
-  '.cs',
-  '.sql',
-  '.sh',
-  '.yaml',
-  '.yml',
-  '.toml',
-  '.xml',
-  '.html',
-  '.css',
-  '.zip',
-]
+interface CatalogVariant {
+  id: string
+  name: string
+  base_family: string
+  context_tokens: number
+  vram_gb: number
+  avg_latency_s: number
+}
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024
-
-export default function CreateModelInstancePage() {
-  const [step, setStep] = useState<Step>('config')
-  const [instanceId, setInstanceId] = useState<string | null>(null)
-
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [systemPrompt, setSystemPrompt] = useState(
-    'You are a helpful assistant. Answer questions based on the provided knowledge.',
-  )
-  const [tier, setTier] = useState<'enterprise' | 'pro' | 'instant'>(
-    'enterprise',
-  )
-  const [baseModel, setBaseModel] = useState('Qualtron-9B-600K')
-
+export default function CreateCAGModelPage() {
+  const [step, setStep] = useState<Step>('model')
+  const [catalog, setCatalog] = useState<CatalogVariant[]>([])
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(null)
+  const [agentName, setAgentName] = useState('')
+  const [systemPrompt, setSystemPrompt] = useState('You are a helpful assistant. Answer questions based on the provided knowledge.')
+  const [agentId, setAgentId] = useState<string | null>(null)
+  const [deployedModelId, setDeployedModelId] = useState<string | null>(null)
   const [files, setFiles] = useState<File[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [jobId, setJobId] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
-  const [currentStep, setCurrentStep] = useState<string | null>(null)
+  const [currentStep, setCurrentStep] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleCreate = (e: FormEvent) => {
-    e.preventDefault()
-    setInstanceId('inst-' + Date.now())
-    setStep('upload')
+  // Load catalog
+  useEffect(() => {
+    fetch('/api/qinference/catalog')
+      .then((r) => r.json())
+      .then((d) => setCatalog(d.data ?? []))
+      .catch(() => {})
+  }, [])
+
+  // Poll ingest job
+  useEffect(() => {
+    if (!jobId || !agentId) return
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/agents/${agentId}/ingest?job_id=${jobId}`)
+        const data = await res.json()
+        setProgress(data.progress ?? 0)
+        setCurrentStep(data.current_step ?? '')
+        if (data.status === 'done') {
+          clearInterval(interval)
+          setStep('deploy')
+        } else if (data.status === 'failed') {
+          clearInterval(interval)
+          setError(data.error ?? 'Ingestion failed')
+        }
+      } catch {
+        clearInterval(interval)
+        setError('Failed to check status')
+      }
+    }, 1500)
+    return () => clearInterval(interval)
+  }, [jobId, agentId])
+
+  // Step 1: Pick model from catalog
+  const handleSelectModel = (variantId: string) => {
+    setSelectedVariant(variantId)
+    setStep('config')
   }
 
-  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files).filter(
-        (f) => f.size <= MAX_FILE_SIZE,
-      )
-      setFiles((prev) => [...prev, ...newFiles])
+  // Step 2: Create agent
+  const handleCreateAgent = async (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    try {
+      const res = await fetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: agentName, system_prompt: systemPrompt, quality: 'max' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail?.[0]?.msg ?? data.error ?? 'Failed')
+      setAgentId(data.id)
+      setStep('upload')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create agent')
     }
   }
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    const dropped = Array.from(e.dataTransfer.files).filter(
-      (f) => f.size <= MAX_FILE_SIZE,
-    )
-    setFiles((prev) => [...prev, ...dropped])
-  }, [])
-
-  const handleStartQHP = () => {
+  // Step 3: Upload files for QHM
+  const handleStartIngest = async () => {
+    if (!agentId || files.length === 0) return
+    setError(null)
     setStep('processing')
-    const stages = [
-      { step: 'classification', target: 0.1 },
-      { step: 'rule_extraction', target: 0.25 },
-      { step: 'normalization', target: 0.4 },
-      { step: 'hypergraph_construction', target: 0.6 },
-      { step: 'intelligence_signals', target: 0.75 },
-      { step: 'qhm_loading', target: 0.9 },
-      { step: 'cache_warming', target: 0.95 },
-      { step: 'done', target: 1.0 },
-    ]
-    let idx = 0
-    const interval = setInterval(() => {
-      if (idx < stages.length) {
-        setCurrentStep(stages[idx].step)
-        setProgress(stages[idx].target)
-        idx++
-      } else {
-        clearInterval(interval)
-        setStep('done')
-      }
-    }, 1200)
+
+    const formData = new FormData()
+    for (const file of files) formData.append('files', file)
+
+    try {
+      const res = await fetch(`/api/agents/${agentId}/ingest`, {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Upload failed')
+      setJobId(data.job_id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
+      setStep('upload')
+    }
   }
 
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index))
+  // Step 4: Deploy to GPU
+  const handleDeploy = async () => {
+    if (!selectedVariant) return
+    setError(null)
+    try {
+      const res = await fetch('/api/qinference/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variant_id: selectedVariant, name: agentName }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Deploy failed')
+      setDeployedModelId(data.id)
+      setStep('done')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Deploy failed')
+    }
   }
+
+  const selectedModel = catalog.find((v) => v.id === selectedVariant)
+  const stepIndex = { model: 0, config: 1, upload: 2, processing: 3, deploy: 4, done: 5 }[step]
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center gap-4">
-        <Link
-          href="/llm/agents"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          ← Model Instances
-        </Link>
+        <Link href="/llm/agents" className="text-muted-foreground hover:text-foreground">← Model Instances</Link>
         <span className="text-muted-foreground">/</span>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Create Qualtron Instance
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight">Create CAG Model</h1>
       </div>
 
-      {/* Step indicator */}
-      <div className="flex gap-2">
-        {(['config', 'upload', 'processing', 'done'] as Step[]).map((s, i) => (
-          <div key={s} className="flex items-center gap-2">
-            {i > 0 && (
-              <div
-                className={`h-px w-8 ${stepIndex(step) >= i ? 'bg-primary' : 'bg-border'}`}
-              />
-            )}
-            <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                stepIndex(step) >= i
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {stepIndex(step) > i ? '✓' : i + 1}
-            </div>
-            <span
-              className={`text-xs ${stepIndex(step) >= i ? 'text-foreground' : 'text-muted-foreground'}`}
-            >
-              {s === 'config'
-                ? 'Configure'
-                : s === 'upload'
-                  ? 'Load QHM'
-                  : s === 'processing'
-                    ? 'QHP Processing'
-                    : 'Ready'}
-            </span>
+      {/* Steps */}
+      <div className="flex gap-1">
+        {['Model', 'Config', 'Upload QHM', 'Processing', 'Deploy', 'Ready'].map((label, i) => (
+          <div key={label} className="flex items-center gap-1">
+            {i > 0 && <div className={`h-px w-4 ${stepIndex >= i ? 'bg-primary' : 'bg-border'}`} />}
+            <div className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${
+              stepIndex >= i ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+            }`}>{stepIndex > i ? '✓' : i + 1}</div>
+            <span className={`text-[10px] ${stepIndex >= i ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
           </div>
         ))}
       </div>
 
-      {/* Step 1: Configuration */}
+      {error && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+      )}
+
+      {/* Step 1: Pick Model */}
+      {step === 'model' && (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">Select a Qualtron model variant from the catalog:</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {catalog.map((v) => (
+              <button key={v.id} onClick={() => handleSelectModel(v.id)}
+                className="rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-primary/50">
+                <div className="text-sm font-semibold">{v.name}</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {(v.context_tokens / 1000).toFixed(0)}K ctx · {v.vram_gb}GB VRAM · {v.avg_latency_s}s latency
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Config */}
       {step === 'config' && (
-        <form onSubmit={handleCreate} className="space-y-5">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              Instance Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Support — Legal Docs"
-              required
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
+        <form onSubmit={handleCreateAgent} className="space-y-4">
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <span className="text-xs font-medium text-primary">Selected: {selectedModel?.name}</span>
+            <span className="ml-2 text-xs text-muted-foreground">
+              {selectedModel && `${(selectedModel.context_tokens / 1000).toFixed(0)}K context`}
+            </span>
           </div>
-
           <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Customer support with product documentation loaded as QHM"
-              rows={2}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
+            <label className="mb-1 block text-sm font-medium">Name</label>
+            <input type="text" value={agentName} onChange={(e) => setAgentName(e.target.value)} required
+              placeholder="e.g. Legal Support" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
           </div>
-
           <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              Base Model
-            </label>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-              {[
-                {
-                  id: 'Qualtron-0.8B-400K',
-                  label: 'Qualtron-0.8B',
-                  qhm: '400K QHM',
-                  desc: 'Ultra-fast, small context',
-                },
-                {
-                  id: 'Qualtron-9B-600K',
-                  label: 'Qualtron-9B',
-                  qhm: '600K QHM',
-                  desc: 'Balanced speed & quality',
-                },
-                {
-                  id: 'Qualtron-27B-1M',
-                  label: 'Qualtron-27B',
-                  qhm: '1M QHM',
-                  desc: 'High quality, large memory',
-                },
-                {
-                  id: 'Qualtron-120B-1M',
-                  label: 'Qualtron-120B',
-                  qhm: '1M QHM',
-                  desc: 'Maximum quality (12B active via MoE)',
-                },
-              ].map((model) => (
-                <label
-                  key={model.id}
-                  className={`cursor-pointer rounded-lg border p-3 transition-colors ${
-                    baseModel === model.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-muted-foreground/30'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="baseModel"
-                    value={model.id}
-                    checked={baseModel === model.id}
-                    onChange={() => setBaseModel(model.id)}
-                    className="sr-only"
-                  />
-                  <div className="text-sm font-semibold">{model.label}</div>
-                  <div className="mt-0.5 text-[10px] font-mono text-primary">
-                    {model.qhm}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {model.desc}
-                  </p>
-                </label>
-              ))}
-            </div>
+            <label className="mb-1 block text-sm font-medium">System Prompt</label>
+            <textarea value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} rows={3}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono" />
           </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              CAG Cognitive Hierarchy
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                {
-                  id: 'enterprise' as const,
-                  label: 'Enterprise (3-Tier)',
-                  desc: 'Full CAG: Tier 1 retrieval (0.8B→2B→4B) → Tier 2 reasoning (9B) → Tier 3 deep analysis (122B)',
-                  stages: ['0.8B', '2B', '4B', '9B', '122B'],
-                },
-                {
-                  id: 'pro' as const,
-                  label: 'Pro (2-Tier)',
-                  desc: 'CAG: Tier 1 retrieval (0.8B→2B→4B) → Tier 2 reasoning (9B). Faster, lower cost.',
-                  stages: ['0.8B', '2B', '4B', '9B'],
-                },
-              ].map((t) => (
-                <label
-                  key={t.id}
-                  className={`cursor-pointer rounded-lg border p-4 transition-colors ${
-                    tier === t.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-muted-foreground/30'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="tier"
-                    value={t.id}
-                    checked={tier === t.id}
-                    onChange={() => setTier(t.id)}
-                    className="sr-only"
-                  />
-                  <div className="text-sm font-semibold">{t.label}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">{t.desc}</p>
-                  <div className="mt-2 flex gap-1">
-                    {t.stages.map((s) => (
-                      <span
-                        key={s}
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-mono ${
-                          s === '122B'
-                            ? 'bg-primary/20 text-primary'
-                            : 'bg-accent/20 text-accent'
-                        }`}
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">
-              System Prompt
-            </label>
-            <textarea
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              rows={3}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={!name}
-            className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            Create & Load QHM
+          <button type="submit" disabled={!agentName} className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+            Create & Upload QHM
           </button>
         </form>
       )}
 
-      {/* Step 2: QHM Upload */}
+      {/* Step 3: Upload */}
       {step === 'upload' && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Upload documents to build the Quantum Hypergraph Memory (QHM). Files
-            are processed through QHP (Quantum Hypergraph Processing) —
-            classification, rule extraction, normalization, hypergraph
-            construction, and intelligence signals.
+            Upload documents to build the QHM (Quantum Hypergraph Memory) for <strong>{agentName}</strong>.
+            Files are processed through the CAG ingest pipeline.
           </p>
-          <div
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            onClick={() => fileInputRef.current?.click()}
-            className="cursor-pointer rounded-lg border-2 border-dashed border-border p-10 text-center transition-colors hover:border-primary/50"
-          >
-            <p className="text-sm font-medium text-foreground">
-              Drop files here or click to browse
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              PDF, DOCX, TXT, MD, CSV, JSON, code files, ZIP — up to 50MB each
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={SUPPORTED_FORMATS.join(',')}
-              onChange={handleFileSelect}
-              className="hidden"
-            />
+          <div onClick={() => fileInputRef.current?.click()}
+            className="cursor-pointer rounded-lg border-2 border-dashed border-border p-8 text-center transition-colors hover:border-primary/50">
+            <p className="text-sm font-medium">Drop files or click to browse</p>
+            <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX, TXT, MD, CSV, JSON, code — up to 50MB</p>
+            <input ref={fileInputRef} type="file" multiple
+              accept=".pdf,.docx,.txt,.md,.csv,.json,.jsonl,.py,.ts,.js,.go,.java,.rs,.zip"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => { if (e.target.files) setFiles(Array.from(e.target.files)) }}
+              className="hidden" />
           </div>
-
           {files.length > 0 && (
-            <div className="space-y-2">
-              <div className="text-sm font-medium">
-                {files.length} file{files.length !== 1 ? 's' : ''} selected
-              </div>
-              {files.map((file, i) => (
-                <div
-                  key={`${file.name}-${i}`}
-                  className="flex items-center justify-between rounded-md border border-border bg-muted/50 px-3 py-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs">📄</span>
-                    <span className="text-sm">{file.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {(file.size / 1024).toFixed(0)} KB
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => removeFile(i)}
-                    className="text-xs text-muted-foreground hover:text-destructive"
-                  >
-                    Remove
-                  </button>
+            <div className="space-y-1">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center justify-between rounded border border-border px-3 py-1.5 text-xs">
+                  <span>{f.name}</span>
+                  <span className="text-muted-foreground">{(f.size / 1024).toFixed(0)} KB</span>
                 </div>
               ))}
             </div>
           )}
-
           <div className="flex gap-3">
-            <button
-              onClick={handleStartQHP}
-              disabled={files.length === 0}
-              className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            >
-              Start QHP Processing
+            <button onClick={handleStartIngest} disabled={files.length === 0}
+              className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+              Upload & Process
             </button>
-            <button
-              onClick={() => setStep('done')}
-              className="rounded-md bg-muted px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/80"
-            >
+            <button onClick={() => setStep('deploy')} className="rounded-md bg-muted px-4 py-2 text-sm text-muted-foreground">
               Skip — No QHM
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 3: QHP Processing */}
+      {/* Step 4: Processing */}
       {step === 'processing' && (
-        <div className="space-y-6">
-          <div className="rounded-lg border border-border bg-card p-6">
-            <div className="mb-4 text-center">
-              <p className="text-sm font-medium text-card-foreground">
-                Quantum Hypergraph Processing
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {currentStep === 'classification' &&
-                  'Stage 1: Classifying document types...'}
-                {currentStep === 'rule_extraction' &&
-                  'Stage 2: Extracting rules into 18 typed categories...'}
-                {currentStep === 'normalization' &&
-                  'Stage 3: Normalizing into Abstract Syntax Trees...'}
-                {currentStep === 'hypergraph_construction' &&
-                  'Stage 4: Building dependency hypergraph...'}
-                {currentStep === 'intelligence_signals' &&
-                  'Stage 5: Generating intelligence signals (relevance, conflicts)...'}
-                {currentStep === 'qhm_loading' &&
-                  'Loading Quantum Hypergraph Memory into model context...'}
-                {currentStep === 'cache_warming' &&
-                  'Warming RadixAttention prefix cache on GPU...'}
-                {currentStep === 'done' && 'Complete!'}
-              </p>
-            </div>
-
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
-                style={{ width: `${progress * 100}%` }}
-              />
-            </div>
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              {Math.round(progress * 100)}%
-            </p>
-
-            <div className="mt-4 grid grid-cols-4 gap-1 lg:grid-cols-7">
-              {[
-                { key: 'classification', label: 'Classify' },
-                { key: 'rule_extraction', label: 'Extract' },
-                { key: 'normalization', label: 'Normalize' },
-                { key: 'hypergraph_construction', label: 'Hypergraph' },
-                { key: 'intelligence_signals', label: 'Signals' },
-                { key: 'qhm_loading', label: 'QHM Load' },
-                { key: 'cache_warming', label: 'Cache' },
-              ].map((s) => {
-                const sp: Record<string, number> = {
-                  classification: 0.1,
-                  rule_extraction: 0.25,
-                  normalization: 0.4,
-                  hypergraph_construction: 0.6,
-                  intelligence_signals: 0.75,
-                  qhm_loading: 0.9,
-                  cache_warming: 0.95,
-                }
-                const isDone = progress > (sp[s.key] ?? 1)
-                const isActive = currentStep === s.key
-                return (
-                  <div
-                    key={s.key}
-                    className={`rounded px-2 py-1.5 text-center text-[10px] font-medium ${
-                      isDone
-                        ? 'bg-accent/20 text-accent'
-                        : isActive
-                          ? 'bg-primary/20 text-primary'
-                          : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    {isDone ? '✓ ' : ''}
-                    {s.label}
-                  </div>
-                )
-              })}
-            </div>
+        <div className="rounded-lg border border-border bg-card p-6 text-center">
+          <p className="text-sm font-medium">Building QHM...</p>
+          <p className="mt-1 text-xs text-muted-foreground">{currentStep || 'Starting...'}</p>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress * 100}%` }} />
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">{Math.round(progress * 100)}%</p>
         </div>
       )}
 
-      {/* Step 4: Done */}
+      {/* Step 5: Deploy */}
+      {step === 'deploy' && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-accent/50 bg-accent/10 p-4">
+            <p className="text-sm font-medium text-accent">QHM ready for {agentName}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Now deploy the model to GPU to start serving.</p>
+          </div>
+          <button onClick={handleDeploy}
+            className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            Deploy {selectedModel?.name} to GPU
+          </button>
+        </div>
+      )}
+
+      {/* Step 6: Done */}
       {step === 'done' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="rounded-lg border border-accent/50 bg-accent/10 p-6 text-center">
             <div className="mb-2 text-3xl">✓</div>
-            <p className="text-sm font-medium text-accent">
-              {baseModel} instance &quot;{name}&quot; is ready!
-            </p>
+            <p className="text-sm font-medium text-accent">{agentName} is deployed!</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {files.length > 0
-                ? `QHM built from ${files.length} files via QHP. RadixAttention cache warmed.`
-                : 'Instance created without QHM. You can load memory later.'}
+              {selectedModel?.name} with QHM loaded. Ready to serve.
             </p>
           </div>
           <div className="flex justify-center gap-3">
-            <Link
-              href={`/llm/agents/${instanceId}`}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              View Instance
+            <Link href="/playground" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+              Chat in Playground
             </Link>
-            <Link
-              href="/playground"
-              className="rounded-md bg-muted px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/80"
-            >
-              Test in Playground
+            <Link href="/llm/agents" className="rounded-md bg-muted px-4 py-2 text-sm text-muted-foreground">
+              View Instances
             </Link>
           </div>
         </div>
       )}
     </div>
   )
-}
-
-function stepIndex(step: Step): number {
-  return { config: 0, upload: 1, processing: 2, done: 3 }[step]
 }

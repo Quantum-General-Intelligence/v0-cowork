@@ -26,7 +26,8 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? ''
 function qhpEnv(): string {
   const vars: string[] = []
   // Route OpenAI calls through OpenRouter using the OpenRouter API key
-  const openaiKey = process.env.OPENAI_API_KEY ?? process.env.OPENROUTER_API_KEY ?? ''
+  const openaiKey =
+    process.env.OPENAI_API_KEY ?? process.env.OPENROUTER_API_KEY ?? ''
   vars.push(`OPENAI_API_KEY="${openaiKey}"`)
   // If no native OpenAI key, use OpenRouter as the base URL
   if (!process.env.OPENAI_API_KEY && process.env.OPENROUTER_API_KEY) {
@@ -34,25 +35,37 @@ function qhpEnv(): string {
     vars.push('LLM_MODEL="openai/gpt-4o"')
   }
   // QHP needs Supabase vars to load (even if extraction-only)
-  vars.push(`SUPABASE_URL="${process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co'}"`)
-  vars.push(`SUPABASE_SERVICE_ROLE_KEY="${process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'placeholder'}"`)
+  vars.push(
+    `SUPABASE_URL="${process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co'}"`,
+  )
+  vars.push(
+    `SUPABASE_SERVICE_ROLE_KEY="${process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'placeholder'}"`,
+  )
   return vars.join(' ')
 }
 
 // ─── GitHub / URL ingestion via gitingest ────────────────────────────────────
 
-async function ingestGitHub(repoUrl: string, options?: { branch?: string; include?: string; exclude?: string }) {
+async function ingestGitHub(
+  repoUrl: string,
+  options?: { branch?: string; include?: string; exclude?: string },
+) {
   const args = [repoUrl, '-o', '-']
   if (options?.branch) args.push('-b', options.branch)
   if (options?.include) args.push('-i', options.include)
   if (options?.exclude) args.push('-e', options.exclude)
   if (GITHUB_TOKEN) args.push('-t', GITHUB_TOKEN)
 
-  const { stdout, stderr } = await execAsync(
-    `gitingest ${args.join(' ')}`,
-    { maxBuffer: 50 * 1024 * 1024, timeout: 120000 },
-  )
-  return { tool: 'gitingest', output: stdout, stderr, tokenEstimate: estimateTokens(stdout) }
+  const { stdout, stderr } = await execAsync(`gitingest ${args.join(' ')}`, {
+    maxBuffer: 50 * 1024 * 1024,
+    timeout: 120000,
+  })
+  return {
+    tool: 'gitingest',
+    output: stdout,
+    stderr,
+    tokenEstimate: estimateTokens(stdout),
+  }
 }
 
 // ─── URL ingestion via QHP-CORE ──────────────────────────────────────────────
@@ -80,10 +93,10 @@ async function ingestFile(filePath: string, options?: { heuristic?: boolean }) {
 // ─── Code indexing via CodeGraphContext ───────────────────────────────────────
 
 async function indexCode(dirPath: string) {
-  const { stdout, stderr } = await execAsync(
-    `cgc index "${dirPath}" 2>&1`,
-    { maxBuffer: 10 * 1024 * 1024, timeout: 300000 },
-  )
+  const { stdout, stderr } = await execAsync(`cgc index "${dirPath}" 2>&1`, {
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 300000,
+  })
   return { tool: 'codegraphcontext', output: stdout, stderr }
 }
 
@@ -141,7 +154,10 @@ export async function POST(req: Request) {
       }
     } catch (error) {
       return NextResponse.json(
-        { error: 'Ingestion failed', detail: error instanceof Error ? error.message : String(error) },
+        {
+          error: 'Ingestion failed',
+          detail: error instanceof Error ? error.message : String(error),
+        },
         { status: 500 },
       )
     }
@@ -167,7 +183,10 @@ export async function POST(req: Request) {
 
     switch (method) {
       case 'github':
-        result = await ingestGitHub(source, options as { branch?: string; include?: string; exclude?: string })
+        result = await ingestGitHub(
+          source,
+          options as { branch?: string; include?: string; exclude?: string },
+        )
         break
 
       case 'url':
@@ -175,7 +194,9 @@ export async function POST(req: Request) {
         break
 
       case 'text': {
-        const hFlag = (options as { heuristic?: boolean })?.heuristic ? '--heuristic' : ''
+        const hFlag = (options as { heuristic?: boolean })?.heuristic
+          ? '--heuristic'
+          : ''
         const { stdout, stderr } = await execAsync(
           `${qhpEnv()} ${QHP_CLI} ingest --text "${source.replace(/"/g, '\\"')}" --json ${hFlag}`,
           { maxBuffer: 10 * 1024 * 1024, timeout: 180000, shell: '/bin/bash' },
@@ -189,13 +210,19 @@ export async function POST(req: Request) {
         break
 
       default:
-        return NextResponse.json({ error: `Unknown method: ${method}` }, { status: 400 })
+        return NextResponse.json(
+          { error: `Unknown method: ${method}` },
+          { status: 400 },
+        )
     }
 
     return NextResponse.json(result)
   } catch (error) {
     return NextResponse.json(
-      { error: 'Ingestion failed', detail: error instanceof Error ? error.message : String(error) },
+      {
+        error: 'Ingestion failed',
+        detail: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     )
   }
