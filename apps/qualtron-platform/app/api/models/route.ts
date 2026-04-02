@@ -20,7 +20,8 @@ export async function GET() {
       id: 'qualtron:default',
       name: 'Qualtron-9B-600K',
       provider: 'qualtron',
-      description: 'Default Qualtron model with CAG cognitive hierarchy. 600K QHM capacity.',
+      description:
+        'Default Qualtron model with CAG cognitive hierarchy. 600K QHM capacity.',
       category: 'Qualtron (CAG)',
     },
 
@@ -29,14 +30,16 @@ export async function GET() {
       id: 'openrouter:anthropic/claude-sonnet-4-20250514',
       name: 'Claude Sonnet 4',
       provider: 'openrouter',
-      description: 'Anthropic Claude Sonnet 4 — fast, capable, great for coding.',
+      description:
+        'Anthropic Claude Sonnet 4 — fast, capable, great for coding.',
       category: 'Anthropic',
     },
     {
       id: 'openrouter:anthropic/claude-opus-4-20250514',
       name: 'Claude Opus 4',
       provider: 'openrouter',
-      description: 'Anthropic Claude Opus 4 — most capable model for complex reasoning.',
+      description:
+        'Anthropic Claude Opus 4 — most capable model for complex reasoning.',
       category: 'Anthropic',
     },
 
@@ -52,7 +55,8 @@ export async function GET() {
       id: 'openrouter:openai/o3-mini',
       name: 'o3-mini',
       provider: 'openrouter',
-      description: 'OpenAI o3-mini — reasoning model, great for math and logic.',
+      description:
+        'OpenAI o3-mini — reasoning model, great for math and logic.',
       category: 'OpenAI',
     },
 
@@ -61,7 +65,8 @@ export async function GET() {
       id: 'openrouter:meta-llama/llama-3.1-70b-instruct',
       name: 'Llama 3.1 70B',
       provider: 'openrouter',
-      description: 'Meta Llama 3.1 70B — open-source, strong general performance.',
+      description:
+        'Meta Llama 3.1 70B — open-source, strong general performance.',
       category: 'Open Source',
     },
     {
