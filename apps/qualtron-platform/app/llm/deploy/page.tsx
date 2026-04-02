@@ -1,310 +1,289 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 
 interface CatalogVariant {
   id: string
   name: string
   base_family: string
+  huggingface_repo: string
   total_params: string
   active_params: string
   context_tokens: number
+  native_context: number
   yarn_multiplier: number
   vram_gb: number
   avg_latency_s: number
+  latency_108k_s: number | null
   architecture: string
   gpu_count: number
   supports_thinking: boolean
+  supports_prefix_cache: boolean
 }
 
 interface DeployedModel {
   id: string
   variant_id: string
   name: string
-  status: string
+  status: 'queued' | 'loading' | 'ready' | 'error' | 'stopped'
+  endpoint: string
   base_family: string
   context_tokens: number
   vram_gb: number
+  gpu_count: number
   total_requests: number
   total_tokens: number
 }
 
-const FAMILY_LABELS: Record<string, { name: string; color: string }> = {
-  nano: { name: 'Nano', color: 'bg-green-100 text-green-800' },
-  mini: { name: 'Mini', color: 'bg-blue-100 text-blue-800' },
-  coder: { name: 'Coder', color: 'bg-purple-100 text-purple-800' },
-  thinker: { name: 'Thinker', color: 'bg-orange-100 text-orange-800' },
-  'coder-pro': { name: 'Coder Pro', color: 'bg-red-100 text-red-800' },
+const FAMILY_LABELS: Record<string, { label: string; color: string }> = {
+  nano: { label: 'Nano', color: 'bg-accent/20 text-accent' },
+  mini: { label: 'Mini', color: 'bg-primary/20 text-primary' },
+  coder: { label: 'Coder', color: 'bg-info/20 text-info' },
+  thinker: { label: 'Thinker', color: 'bg-warning/20 text-warning' },
+  'coder-pro': { label: 'Coder Pro', color: 'bg-destructive/20 text-destructive' },
 }
 
-const STATUS_ICONS: Record<string, string> = {
-  ready: '●',
-  loading: '◐',
-  queued: '○',
-  error: '✗',
-  stopped: '□',
+const STATUS_COLORS: Record<string, string> = {
+  ready: 'bg-success/20 text-success',
+  loading: 'bg-warning/20 text-warning',
+  queued: 'bg-muted text-muted-foreground',
+  error: 'bg-destructive/20 text-destructive',
+  stopped: 'bg-muted text-muted-foreground',
 }
 
-export default function QInferenceDeployPage() {
+export default function DeployPage() {
   const [catalog, setCatalog] = useState<CatalogVariant[]>([])
-  const [models, setModels] = useState<DeployedModel[]>([])
-  const [selectedFamily, setSelectedFamily] = useState<string>('')
+  const [deployed, setDeployed] = useState<DeployedModel[]>([])
+  const [familyFilter, setFamilyFilter] = useState('all')
+  const [loading, setLoading] = useState(true)
   const [deploying, setDeploying] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchCatalog()
-    fetchModels()
+  const fetchData = useCallback(async () => {
+    try {
+      const [catRes, depRes] = await Promise.all([
+        fetch('/api/qinference/catalog').then((r) => r.json()),
+        fetch('/api/qinference/models').then((r) => r.json()),
+      ])
+      setCatalog(catRes.data ?? [])
+      setDeployed(depRes.data ?? [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  async function fetchCatalog() {
-    const res = await fetch('/api/qinference/catalog')
-    if (res.ok) {
-      const data = await res.json()
-      setCatalog(data.data ?? [])
-    }
-  }
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
-  async function fetchModels() {
-    const res = await fetch('/api/qinference/models')
-    if (res.ok) {
-      const data = await res.json()
-      setModels(data.data ?? [])
-    }
-  }
-
-  async function deploy(variantId: string) {
-    setDeploying(variantId)
-    setError(null)
-    try {
-      const res = await fetch('/api/qinference/models', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variant_id: variantId }),
-      })
-      if (res.ok) {
-        await fetchModels()
-      } else {
-        const data = await res.json()
-        setError(data.error ?? 'Deploy failed')
+  const handleDeploy = useCallback(
+    async (variantId: string) => {
+      setDeploying(variantId)
+      setError(null)
+      try {
+        await fetch('/api/qinference/models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variant_id: variantId }),
+        })
+        await fetchData()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Deploy failed')
+      } finally {
+        setDeploying(null)
       }
-    } catch (e) {
-      setError(String(e))
-    }
-    setDeploying(null)
-  }
+    },
+    [fetchData],
+  )
 
-  const families = [...new Set(catalog.map((v) => v.base_family))]
-  const filtered = selectedFamily
-    ? catalog.filter((v) => v.base_family === selectedFamily)
-    : catalog
+  const families = ['all', ...new Set(catalog.map((v) => v.base_family))]
+  const filtered =
+    familyFilter === 'all'
+      ? catalog
+      : catalog.filter((v) => v.base_family === familyFilter)
+  const deployedIds = new Set(deployed.map((d) => d.variant_id))
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Q-Inference — Model Deployment
+          Qualtron Model Deploy
         </h1>
         <p className="text-muted-foreground">
-          Deploy Qualtron AI models to your GPU infrastructure. 5 base models,
-          17 variants with YaRN context extension.
+          Deploy Qualtron model variants to GPU. 5 base models × YaRN context
+          scaling = 17 variants.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      {/* Active Models */}
+      {/* Deployed */}
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Deployed Models</h2>
-        {models.length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            No models deployed yet. Pick one from the catalog below.
+        <h2 className="mb-3 text-lg font-semibold">
+          Deployed ({deployed.length})
+        </h2>
+        {deployed.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+            {loading ? 'Loading...' : 'No models deployed yet.'}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium">Model</th>
-                  <th className="px-4 py-2 text-left font-medium">Status</th>
-                  <th className="px-4 py-2 text-left font-medium">Context</th>
-                  <th className="px-4 py-2 text-left font-medium">VRAM</th>
-                  <th className="px-4 py-2 text-right font-medium">Requests</th>
-                </tr>
-              </thead>
-              <tbody>
-                {models.map((m) => (
-                  <tr key={m.id} className="border-t border-border">
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{m.name}</div>
-                      <div className="font-mono text-xs text-muted-foreground">
-                        {m.variant_id}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={
-                          m.status === 'ready'
-                            ? 'text-green-600'
-                            : m.status === 'error'
-                              ? 'text-red-600'
-                              : 'text-yellow-600'
-                        }
-                      >
-                        {STATUS_ICONS[m.status] ?? '?'} {m.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {deployed.map((m) => (
+              <div
+                key={m.id}
+                className="rounded-lg border border-border bg-card p-4"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">{m.name}</h3>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_COLORS[m.status] ?? ''}`}
+                  >
+                    {m.status}
+                  </span>
+                </div>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Context</span>
+                    <span className="font-mono">
                       {(m.context_tokens / 1000).toFixed(0)}K
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">
-                      {m.vram_gb}GB
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs">
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>VRAM</span>
+                    <span className="font-mono">{m.vram_gb} GB</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Requests</span>
+                    <span className="font-mono">
                       {m.total_requests.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </span>
+                  </div>
+                </div>
+                {m.status === 'ready' && (
+                  <Link
+                    href="/playground"
+                    className="mt-3 inline-block rounded-md bg-primary/10 px-3 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/20"
+                  >
+                    Chat →
+                  </Link>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
 
       {/* Catalog */}
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Model Catalog</h2>
-
-        {/* Family filter */}
-        <div className="mb-4 flex gap-2">
-          <button
-            onClick={() => setSelectedFamily('')}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              !selectedFamily
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            All ({catalog.length})
-          </button>
-          {families.map((f) => {
-            const label = FAMILY_LABELS[f] ?? { name: f, color: 'bg-gray-100' }
-            const count = catalog.filter((v) => v.base_family === f).length
-            return (
-              <button
-                key={f}
-                onClick={() => setSelectedFamily(selectedFamily === f ? '' : f)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  selectedFamily === f
-                    ? 'bg-primary text-primary-foreground'
-                    : `${label.color} hover:opacity-80`
-                }`}
-              >
-                {label.name} ({count})
-              </button>
-            )
-          })}
+        <h2 className="mb-3 text-lg font-semibold">
+          Catalog ({catalog.length})
+        </h2>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {families.map((f) => (
+            <button
+              key={f}
+              onClick={() => setFamilyFilter(f)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                familyFilter === f
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {f === 'all'
+                ? `All (${catalog.length})`
+                : `${FAMILY_LABELS[f]?.label ?? f} (${catalog.filter((v) => v.base_family === f).length})`}
+            </button>
+          ))}
         </div>
 
-        {/* Variant grid */}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((v) => {
-            const label = FAMILY_LABELS[v.base_family] ?? {
-              name: v.base_family,
-              color: 'bg-gray-100',
-            }
-            const isDeployed = models.some(
-              (m) => m.variant_id === v.id && m.status !== 'stopped',
-            )
-            const yarn =
-              v.yarn_multiplier > 1 ? `YaRN ${v.yarn_multiplier}×` : 'native'
-
-            return (
-              <div
-                key={v.id}
-                className={`rounded-lg border p-4 transition-colors ${
-                  isDeployed
-                    ? 'border-green-300 bg-green-50/50'
-                    : 'border-border hover:border-muted-foreground/30'
-                }`}
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${label.color}`}
-                  >
-                    {label.name}
-                  </span>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {v.total_params} / {v.active_params} active
-                  </span>
-                </div>
-
-                <h3 className="mb-1 text-sm font-semibold">{v.name}</h3>
-                <p className="mb-2 text-xs text-muted-foreground">
-                  {v.architecture} — {yarn}
-                </p>
-
-                <div className="mb-3 grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <div className="text-xs text-muted-foreground">Context</div>
-                    <div className="font-mono text-xs font-bold">
-                      {v.context_tokens >= 1_000_000
-                        ? `${(v.context_tokens / 1_000_000).toFixed(0)}M`
-                        : `${(v.context_tokens / 1000).toFixed(0)}K`}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">VRAM</div>
-                    <div className="font-mono text-xs font-bold">
-                      {v.vram_gb}GB
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Latency</div>
-                    <div className="font-mono text-xs font-bold">
-                      {v.avg_latency_s}s
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mb-3 flex gap-1">
-                  {v.supports_thinking && (
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
-                      thinking
-                    </span>
-                  )}
-                  {v.gpu_count > 1 && (
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
-                      TP={v.gpu_count}
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => deploy(v.id)}
-                  disabled={isDeployed || deploying === v.id}
-                  className={`w-full rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                    isDeployed
-                      ? 'cursor-default bg-green-100 text-green-700'
-                      : deploying === v.id
-                        ? 'cursor-wait bg-muted text-muted-foreground'
-                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  }`}
+        {loading ? (
+          <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+            Loading catalog from Q-Inference...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {filtered.map((v) => {
+              const fam = FAMILY_LABELS[v.base_family]
+              const isDeployed = deployedIds.has(v.id)
+              return (
+                <div
+                  key={v.id}
+                  className={`rounded-lg border bg-card p-4 ${isDeployed ? 'border-accent/50' : 'border-border'}`}
                 >
-                  {isDeployed
-                    ? '● Deployed'
-                    : deploying === v.id
-                      ? 'Deploying...'
-                      : 'Deploy'}
-                </button>
-              </div>
-            )
-          })}
-        </div>
+                  <div className="mb-2 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold">{v.name}</h3>
+                    {fam && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${fam.color}`}
+                      >
+                        {fam.label}
+                      </span>
+                    )}
+                    {isDeployed && (
+                      <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] text-accent">
+                        Deployed
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mb-3 grid grid-cols-4 gap-2 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">Context</div>
+                      <div className="font-mono font-medium">
+                        {(v.context_tokens / 1000).toFixed(0)}K
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">VRAM</div>
+                      <div className="font-mono font-medium">
+                        {v.vram_gb} GB
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Latency</div>
+                      <div className="font-mono font-medium">
+                        {v.avg_latency_s}s
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">GPUs</div>
+                      <div className="font-mono font-medium">
+                        {v.gpu_count}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-3 text-xs text-muted-foreground">
+                    <span className="font-mono">{v.architecture}</span>
+                    {' · '}
+                    {v.total_params}
+                    {v.active_params !== v.total_params &&
+                      ` (${v.active_params} active)`}
+                    {v.supports_thinking && ' · Thinking'}
+                    {v.supports_prefix_cache && ' · Prefix Cache'}
+                  </div>
+
+                  {!isDeployed && (
+                    <button
+                      onClick={() => handleDeploy(v.id)}
+                      disabled={deploying === v.id}
+                      className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {deploying === v.id ? 'Deploying...' : 'Deploy to GPU'}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
