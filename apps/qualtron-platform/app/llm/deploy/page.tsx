@@ -41,7 +41,10 @@ const FAMILY_LABELS: Record<string, { label: string; color: string }> = {
   mini: { label: 'Mini', color: 'bg-primary/20 text-primary' },
   coder: { label: 'Coder', color: 'bg-info/20 text-info' },
   thinker: { label: 'Thinker', color: 'bg-warning/20 text-warning' },
-  'coder-pro': { label: 'Coder Pro', color: 'bg-destructive/20 text-destructive' },
+  'coder-pro': {
+    label: 'Coder Pro',
+    color: 'bg-destructive/20 text-destructive',
+  },
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -254,9 +257,7 @@ export default function DeployPage() {
                     </div>
                     <div>
                       <div className="text-muted-foreground">GPUs</div>
-                      <div className="font-mono font-medium">
-                        {v.gpu_count}
-                      </div>
+                      <div className="font-mono font-medium">{v.gpu_count}</div>
                     </div>
                   </div>
 

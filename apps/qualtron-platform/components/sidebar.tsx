@@ -20,17 +20,14 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Q-GST Engine',
     items: [
       { label: 'Dashboard', href: '/', icon: '⚡' },
-      { label: 'Agents', href: '/agents', icon: '🤖' },
-      { label: 'Knowledge Graph', href: '/knowledge', icon: '🔗' },
-      { label: 'Timeline', href: '/analytics', icon: '📊' },
     ],
   },
   {
     title: 'Qualtron Models',
     items: [
       { label: 'Model Instances', href: '/llm/agents', icon: '🧠' },
+      { label: 'Spine Cortex', href: '/llm/cortex', icon: '🧬' },
       { label: 'GPU Deploy', href: '/llm/deploy', icon: '🚀' },
-      { label: 'Billing & Usage', href: '/llm/billing', icon: '💳' },
     ],
   },
   {
