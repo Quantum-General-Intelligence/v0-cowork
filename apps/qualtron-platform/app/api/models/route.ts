@@ -38,16 +38,14 @@ export async function GET() {
       id: 'pi:openrouter:anthropic/claude-sonnet-4-20250514',
       name: 'Pi-Claude-Sonnet-4',
       provider: 'pi',
-      description:
-        'Pi Agent with tools + Claude Sonnet 4 via OpenRouter.',
+      description: 'Pi Agent with tools + Claude Sonnet 4 via OpenRouter.',
       category: 'Pi Agents',
     },
     {
       id: 'pi:openrouter:openai/gpt-4o',
       name: 'Pi-GPT-4o',
       provider: 'pi',
-      description:
-        'Pi Agent with tools + GPT-4o via OpenRouter.',
+      description: 'Pi Agent with tools + GPT-4o via OpenRouter.',
       category: 'Pi Agents',
     },
 
@@ -111,32 +109,36 @@ export async function GET() {
     },
   ]
 
-  // If Qualtron backend is configured, try to fetch its actual agents
+  // Fetch Q-Inference deployed models (real GPU-backed inference)
   if (process.env.CACHEDLLM_URL) {
     try {
-      const res = await fetch(`${process.env.CACHEDLLM_URL}/v1/models`, {
-        headers: {
-          Authorization: `Bearer ${process.env.CACHEDLLM_API_KEY ?? ''}`,
+      const res = await fetch(
+        `${process.env.CACHEDLLM_URL}/v1/qinference/models?status=ready`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.CACHEDLLM_API_KEY ?? ''}`,
+          },
         },
-      })
+      )
       if (res.ok) {
         const data = await res.json()
         const qualtronModels: ModelOption[] = (data.data ?? []).map(
-          (m: { id: string }) => ({
+          (m: { id: string; name: string; variant_id: string }) => ({
             id: `qualtron:${m.id}`,
-            name: m.id,
+            name: m.name || m.variant_id,
             provider: 'qualtron' as const,
-            description: `Qualtron instance with CAG cognitive hierarchy`,
-            category: 'Qualtron (CAG)',
+            description: `Q-Inference: ${m.variant_id} — direct GPU inference`,
+            category: 'Qualtron (Q-Inference)',
           }),
         )
-        // Replace default with actual models
-        return NextResponse.json({
-          models: [
-            ...qualtronModels,
-            ...models.filter((m) => m.provider === 'openrouter'),
-          ],
-        })
+        if (qualtronModels.length > 0) {
+          return NextResponse.json({
+            models: [
+              ...qualtronModels,
+              ...models.filter((m) => m.provider !== 'qualtron'),
+            ],
+          })
+        }
       }
     } catch {
       // Fall through to defaults
