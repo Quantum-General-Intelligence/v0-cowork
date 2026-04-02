@@ -33,14 +33,15 @@ export function PlaygroundClient() {
   const [activePanel, setActivePanel] = useState<'left' | 'right'>('left')
   const [showSidebar, setShowSidebar] = useState(true)
 
-  // Chat transport
+  // Chat transport — route Pi models to Pi agent endpoint
+  const isPiModel = selectedModel.startsWith('pi:')
   const transport = useMemo(
     () =>
       new TextStreamChatTransport({
-        api: '/api/chat',
+        api: isPiModel ? '/api/chat/pi' : '/api/chat',
         body: { model: selectedModel },
       }),
-    [selectedModel],
+    [selectedModel, isPiModel],
   )
 
   const { messages, sendMessage, status, error, setMessages } = useChat({
@@ -100,14 +101,9 @@ export function PlaygroundClient() {
     [activeSessionId, setMessages],
   )
 
-  const handleRenameSession = useCallback(
-    (id: string, title: string) => {
-      setSessions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, title } : s)),
-      )
-    },
-    [],
-  )
+  const handleRenameSession = useCallback((id: string, title: string) => {
+    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, title } : s)))
+  }, [])
 
   // Send message
   const handleSubmit = useCallback(
@@ -140,7 +136,14 @@ export function PlaygroundClient() {
       sendMessage({ text: inputValue })
       setInputValue('')
     },
-    [inputValue, isLoading, activeSessionId, selectedModel, selectedModelInfo, sendMessage],
+    [
+      inputValue,
+      isLoading,
+      activeSessionId,
+      selectedModel,
+      selectedModelInfo,
+      sendMessage,
+    ],
   )
 
   // Chat panel
@@ -250,9 +253,7 @@ export function PlaygroundClient() {
     <div className="flex h-[calc(100vh-112px)]">
       {/* Sidebar — hidden on mobile unless toggled */}
       <div
-        className={`${
-          showSidebar ? 'block' : 'hidden'
-        } w-64 shrink-0 lg:block`}
+        className={`${showSidebar ? 'block' : 'hidden'} w-64 shrink-0 lg:block`}
       >
         <ChatSidebar
           sessions={sessions}

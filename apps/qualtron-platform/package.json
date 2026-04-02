@@ -12,6 +12,8 @@
   "dependencies": {
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/react": "^2.0.22",
+    "@mariozechner/pi-agent-core": "^0.64.0",
+    "@mariozechner/pi-ai": "^0.64.0",
     "@qgst/client": "workspace:*",
     "@qgst/ui": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.10",

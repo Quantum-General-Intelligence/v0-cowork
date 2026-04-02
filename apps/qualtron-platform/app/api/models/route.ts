@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server'
 interface ModelOption {
   id: string
   name: string
-  provider: 'qualtron' | 'openrouter'
+  provider: 'qualtron' | 'openrouter' | 'pi'
   description: string
   category: string
 }
@@ -23,6 +23,32 @@ export async function GET() {
       description:
         'Default Qualtron model with CAG cognitive hierarchy. 600K QHM capacity.',
       category: 'Qualtron (CAG)',
+    },
+
+    // Pi Agents (Agentic — tools + multi-turn)
+    {
+      id: 'pi:qualtron:9b-600k',
+      name: 'Pi-Qualtron-9B-600K',
+      provider: 'pi',
+      description:
+        'Pi Agent with tools (read, bash) + Qualtron-9B CAG inference.',
+      category: 'Pi Agents',
+    },
+    {
+      id: 'pi:openrouter:anthropic/claude-sonnet-4-20250514',
+      name: 'Pi-Claude-Sonnet-4',
+      provider: 'pi',
+      description:
+        'Pi Agent with tools + Claude Sonnet 4 via OpenRouter.',
+      category: 'Pi Agents',
+    },
+    {
+      id: 'pi:openrouter:openai/gpt-4o',
+      name: 'Pi-GPT-4o',
+      provider: 'pi',
+      description:
+        'Pi Agent with tools + GPT-4o via OpenRouter.',
+      category: 'Pi Agents',
     },
 
     // OpenRouter — Anthropic
