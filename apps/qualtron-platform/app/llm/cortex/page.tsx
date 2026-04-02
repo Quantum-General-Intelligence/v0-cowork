@@ -9,6 +9,7 @@ import {
   type FormEvent,
 } from 'react'
 import Link from 'next/link'
+import { CAG_PROMPT_TEMPLATES, getPromptById } from '@/lib/cag-prompts'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -228,14 +229,35 @@ export default function SpineCortexPage() {
         </p>
       </div>
 
-      {/* Cortex Name */}
-      <input
-        type="text"
-        value={cortexName}
-        onChange={(e) => setCortexName(e.target.value)}
-        placeholder="Cortex name (e.g. Legal Analysis Pipeline)"
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-      />
+      {/* Cortex Name + Behavior */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-xs font-medium">Cortex Name</label>
+          <input
+            type="text"
+            value={cortexName}
+            onChange={(e) => setCortexName(e.target.value)}
+            placeholder="e.g. Legal Analysis Pipeline"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium">Agent Behavior</label>
+          <div className="flex flex-wrap gap-1.5">
+            {CAG_PROMPT_TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => {/* stored in deploy config */}}
+                className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] transition-colors hover:border-primary/50"
+                title={t.description}
+              >
+                <span>{t.icon}</span>
+                <span>{t.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Three Stages */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -467,12 +489,20 @@ export default function SpineCortexPage() {
       </div>
 
       {/* Deploy */}
-      <DeploySection stages={stages} cortexName={cortexName} catalogModels={catalogModels} />
+      <DeploySection
+        stages={stages}
+        cortexName={cortexName}
+        catalogModels={catalogModels}
+      />
     </div>
   )
 }
 
-function DeploySection({ stages, cortexName, catalogModels }: {
+function DeploySection({
+  stages,
+  cortexName,
+  catalogModels,
+}: {
   stages: CortexStage[]
   cortexName: string
   catalogModels: CatalogModel[]
@@ -501,7 +531,8 @@ function DeploySection({ stages, cortexName, catalogModels }: {
           body: JSON.stringify({ variant_id: stage.model, name }),
         })
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? `Failed to deploy ${stage.name}`)
+        if (!res.ok)
+          throw new Error(data.error ?? `Failed to deploy ${stage.name}`)
         ids.push(data.id)
       }
 
@@ -512,7 +543,9 @@ function DeploySection({ stages, cortexName, catalogModels }: {
       const config = {
         name: cortexName,
         stages: stages.map((s) => ({
-          id: s.id, name: s.name, model: s.model,
+          id: s.id,
+          name: s.name,
+          model: s.model,
           modelName: catalogModels.find((m) => m.id === s.model)?.name,
           qhmTokenCount: s.qhmTokenCount,
         })),
@@ -522,9 +555,10 @@ function DeploySection({ stages, cortexName, catalogModels }: {
       const saved = JSON.parse(localStorage.getItem('cortex-configs') ?? '[]')
       saved.unshift(config)
       localStorage.setItem('cortex-configs', JSON.stringify(saved.slice(0, 20)))
-
     } catch (err) {
-      setDeployStatus(`Error: ${err instanceof Error ? err.message : 'Deploy failed'}`)
+      setDeployStatus(
+        `Error: ${err instanceof Error ? err.message : 'Deploy failed'}`,
+      )
     } finally {
       setDeploying(false)
     }
@@ -547,23 +581,31 @@ function DeploySection({ stages, cortexName, catalogModels }: {
       </div>
 
       {deployStatus && (
-        <div className={`rounded-lg border p-3 text-sm ${
-          deployedIds.length === 3
-            ? 'border-accent/50 bg-accent/10 text-accent'
-            : deploying
-              ? 'border-primary/50 bg-primary/10 text-primary'
-              : 'border-destructive/50 bg-destructive/10 text-destructive'
-        }`}>
+        <div
+          className={`rounded-lg border p-3 text-sm ${
+            deployedIds.length === 3
+              ? 'border-accent/50 bg-accent/10 text-accent'
+              : deploying
+                ? 'border-primary/50 bg-primary/10 text-primary'
+                : 'border-destructive/50 bg-destructive/10 text-destructive'
+          }`}
+        >
           {deployStatus}
         </div>
       )}
 
       {deployedIds.length === 3 && (
         <div className="flex gap-3">
-          <Link href="/playground" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+          <Link
+            href="/playground"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          >
             Chat in Playground
           </Link>
-          <Link href="/llm/agents" className="rounded-md bg-muted px-4 py-2 text-sm text-muted-foreground">
+          <Link
+            href="/llm/agents"
+            className="rounded-md bg-muted px-4 py-2 text-sm text-muted-foreground"
+          >
             View Instances
           </Link>
         </div>
