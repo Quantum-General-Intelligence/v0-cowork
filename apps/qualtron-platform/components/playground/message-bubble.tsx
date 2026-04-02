@@ -51,7 +51,7 @@ export function MessageBubble({
               {modelName}
             </span>
             {providerType === 'pi' && (
-              <span className="rounded bg-warning/20 px-1 py-0.5 text-[8px] font-mono text-warning">
+              <span className="rounded bg-warning/20 px-1 py-0.5 text-[10px] font-mono text-warning">
                 AGENT
               </span>
             )}

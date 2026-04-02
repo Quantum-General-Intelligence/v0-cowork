@@ -166,11 +166,11 @@ export function PlaygroundClient() {
         <div className="flex items-center gap-2">
           {providerType === 'qualtron' && (
             <div className="hidden items-center gap-1 sm:flex">
-              <span className="text-[9px] text-muted-foreground">CAG:</span>
+              <span className="text-[10px] text-muted-foreground">CAG:</span>
               {['0.8B', '2B', '4B', '9B', '122B'].map((s) => (
                 <span
                   key={s}
-                  className={`rounded px-1 py-0.5 text-[7px] font-mono ${
+                  className={`rounded px-1 py-0.5 text-[10px] font-mono ${
                     s === '122B'
                       ? 'bg-primary/20 text-primary'
                       : 'bg-accent/20 text-accent'

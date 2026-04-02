@@ -296,7 +296,7 @@ export default function CreateModelInstancePage() {
                     {t.stages.map((s) => (
                       <span
                         key={s}
-                        className={`rounded px-1.5 py-0.5 text-[9px] font-mono ${
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-mono ${
                           s === '122B'
                             ? 'bg-primary/20 text-primary'
                             : 'bg-accent/20 text-accent'

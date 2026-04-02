@@ -52,6 +52,7 @@ CUDA_VISIBLE_DEVICES=0,1 sglang serve \
 ```
 
 Wait for ready:
+
 ```bash
 curl http://127.0.0.1:18000/health  # should return 200
 curl http://127.0.0.1:18001/health  # if running Option A
@@ -80,6 +81,7 @@ python3 -m uvicorn cagent.api.main:app --host 0.0.0.0 --port 8000 --log-level in
 ```
 
 Verify:
+
 ```bash
 curl http://localhost:8000/health
 # {"status":"ok","gpu_available":true,...}
@@ -100,6 +102,7 @@ pnpm dev --filter qualtron-platform
 Opens at: **http://localhost:17860**
 
 The `.env.local` is already configured:
+
 - `CACHEDLLM_URL=http://localhost:8000` → Q-Inference API
 - `CACHEDLLM_API_KEY=cag_prod_...` → API key (seeded in Supabase)
 - `NEXT_PUBLIC_SUPABASE_URL` → shared Supabase project
@@ -167,17 +170,18 @@ python3 -m cagent.maas.cli cluster
 
 ## Qualtron Model Catalog (5 base × YaRN = 17 variants)
 
-| Family | Base Model | VRAM | Latency | Context Options |
-|--------|-----------|------|---------|-----------------|
-| **Nano** | Nemotron-3-Nano-4B (Mamba-2) | 16GB | 0.06s | 262K, 524K, 786K, 1M |
-| **Mini** | Qwen3.5-4B (GDN) | 11GB | 0.10s | 262K, 524K, 1M |
-| **Coder** | Nemotron-Cascade-2-30B (Mamba+LatentMoE) | 64GB | 0.75s | 1M, 2M, 3M, 4M |
-| **Thinker** | Qwen3.5-122B-A10B-FP8 (GDN+MoE) | 130GB | 1.0s | 262K, 1M |
-| **Coder Pro** | Nemotron-3-Super-120B (Mamba-2 MoE) | 138GB | 1.7s | 1M, 2M, 3M, 4M |
+| Family        | Base Model                               | VRAM  | Latency | Context Options      |
+| ------------- | ---------------------------------------- | ----- | ------- | -------------------- |
+| **Nano**      | Nemotron-3-Nano-4B (Mamba-2)             | 16GB  | 0.06s   | 262K, 524K, 786K, 1M |
+| **Mini**      | Qwen3.5-4B (GDN)                         | 11GB  | 0.10s   | 262K, 524K, 1M       |
+| **Coder**     | Nemotron-Cascade-2-30B (Mamba+LatentMoE) | 64GB  | 0.75s   | 1M, 2M, 3M, 4M       |
+| **Thinker**   | Qwen3.5-122B-A10B-FP8 (GDN+MoE)          | 130GB | 1.0s    | 262K, 1M             |
+| **Coder Pro** | Nemotron-3-Super-120B (Mamba-2 MoE)      | 138GB | 1.7s    | 1M, 2M, 3M, 4M       |
 
 ## Supabase
 
 Both repos share the same Supabase project (`ibpoxcjoswktwtsmmcps`):
+
 - Python API uses Postgres via pooler (port 6543)
 - Next.js uses Supabase JS client (publishable key)
 - 7 tables: clients, agents, api_keys, deployments, ingest_jobs, maas_models, usage_logs
@@ -185,11 +189,13 @@ Both repos share the same Supabase project (`ibpoxcjoswktwtsmmcps`):
 ## Troubleshooting
 
 **API returns 500**: Check if SGLang is running on the expected port
+
 ```bash
 curl http://127.0.0.1:18000/health
 ```
 
 **Auth fails**: The API key must be in the Supabase `api_keys` table with matching hash
+
 ```bash
 # Re-seed if needed (from QGI-Cashed-LLM directory)
 python3 -c "
@@ -211,6 +217,7 @@ conn.close()
 ```
 
 **Platform can't reach API**: Check CACHEDLLM_URL in `.env.local`
+
 ```bash
 curl http://localhost:8000/health
 ```

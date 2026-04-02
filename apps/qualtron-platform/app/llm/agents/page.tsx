@@ -134,13 +134,13 @@ export default function ModelInstancesPage() {
                 {['0.8B', '2B', '4B', '9B'].map((stage) => (
                   <span
                     key={stage}
-                    className="rounded bg-accent/20 px-1.5 py-0.5 text-[9px] font-mono text-accent"
+                    className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-mono text-accent"
                   >
                     {stage}
                   </span>
                 ))}
                 {inst.quality === 'max' && (
-                  <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-mono text-primary">
+                  <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-mono text-primary">
                     122B
                   </span>
                 )}

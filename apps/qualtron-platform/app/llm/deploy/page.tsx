@@ -133,9 +133,7 @@ export default function QInferenceDeployPage() {
                   <th className="px-4 py-2 text-left font-medium">Status</th>
                   <th className="px-4 py-2 text-left font-medium">Context</th>
                   <th className="px-4 py-2 text-left font-medium">VRAM</th>
-                  <th className="px-4 py-2 text-right font-medium">
-                    Requests
-                  </th>
+                  <th className="px-4 py-2 text-right font-medium">Requests</th>
                 </tr>
               </thead>
               <tbody>
@@ -199,9 +197,7 @@ export default function QInferenceDeployPage() {
             return (
               <button
                 key={f}
-                onClick={() =>
-                  setSelectedFamily(selectedFamily === f ? '' : f)
-                }
+                onClick={() => setSelectedFamily(selectedFamily === f ? '' : f)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   selectedFamily === f
                     ? 'bg-primary text-primary-foreground'
@@ -222,7 +218,7 @@ export default function QInferenceDeployPage() {
               color: 'bg-gray-100',
             }
             const isDeployed = models.some(
-              (m) => m.variant_id === v.id && m.status !== 'stopped'
+              (m) => m.variant_id === v.id && m.status !== 'stopped',
             )
             const yarn =
               v.yarn_multiplier > 1 ? `YaRN ${v.yarn_multiplier}×` : 'native'

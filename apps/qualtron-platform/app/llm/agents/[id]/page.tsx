@@ -116,10 +116,10 @@ export default function ModelInstanceDetailPage({
                 <div className="text-xs font-bold text-card-foreground">
                   {stage.model}
                 </div>
-                <div className="mt-0.5 text-[9px] text-muted-foreground">
+                <div className="mt-0.5 text-[10px] text-muted-foreground">
                   {stage.label}
                 </div>
-                <div className="mt-0.5 text-[8px] text-muted-foreground/60">
+                <div className="mt-0.5 text-[10px] text-muted-foreground/60">
                   {stage.tier}
                 </div>
               </div>

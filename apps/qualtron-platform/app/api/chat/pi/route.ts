@@ -1,5 +1,9 @@
 import { Agent, type AgentEvent } from '@mariozechner/pi-agent-core'
-import { registerBuiltInApiProviders, streamSimple, Type } from '@mariozechner/pi-ai'
+import {
+  registerBuiltInApiProviders,
+  streamSimple,
+  Type,
+} from '@mariozechner/pi-ai'
 import type { Model } from '@mariozechner/pi-ai'
 
 // Register all built-in providers (Anthropic, OpenAI, Google, etc.)
@@ -70,12 +74,9 @@ function createModel(modelSpec: string): Model<any> {
 }
 
 function getApiKey(provider: string): string {
-  if (provider === 'qualtron')
-    return process.env.CACHEDLLM_API_KEY ?? ''
-  if (provider === 'openrouter')
-    return process.env.OPENROUTER_API_KEY ?? ''
-  if (provider === 'anthropic')
-    return process.env.ANTHROPIC_API_KEY ?? ''
+  if (provider === 'qualtron') return process.env.CACHEDLLM_API_KEY ?? ''
+  if (provider === 'openrouter') return process.env.OPENROUTER_API_KEY ?? ''
+  if (provider === 'anthropic') return process.env.ANTHROPIC_API_KEY ?? ''
   return process.env.OPENROUTER_API_KEY ?? ''
 }
 
@@ -87,10 +88,7 @@ const readTool = {
   parameters: Type.Object({
     path: Type.String({ description: 'File path to read' }),
   }),
-  async execute(
-    toolCallId: string,
-    params: { path: string },
-  ) {
+  async execute(toolCallId: string, params: { path: string }) {
     return {
       content: [
         {
@@ -110,10 +108,7 @@ const bashTool = {
   parameters: Type.Object({
     command: Type.String({ description: 'Command to execute' }),
   }),
-  async execute(
-    toolCallId: string,
-    params: { command: string },
-  ) {
+  async execute(toolCallId: string, params: { command: string }) {
     return {
       content: [
         {
@@ -187,10 +182,7 @@ export async function POST(req: Request) {
       try {
         // Subscribe to agent events
         const unsubscribe = agent.subscribe((event: AgentEvent) => {
-          if (
-            event.type === 'message_update' &&
-            event.assistantMessageEvent
-          ) {
+          if (event.type === 'message_update' && event.assistantMessageEvent) {
             const evt = event.assistantMessageEvent
             if (evt.type === 'text_delta' && evt.delta) {
               controller.enqueue(encoder.encode(evt.delta))
