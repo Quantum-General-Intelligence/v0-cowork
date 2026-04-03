@@ -174,11 +174,16 @@ export async function POST(req: Request) {
           const result = await indexCode(tmpDir)
           return NextResponse.json(result)
         }
-        if (tool === 'llm') {
+
+        // Binary files (PDF, DOCX, etc.) must use LLM pipeline — sym-ingest only reads UTF-8 text
+        const binaryExts = ['.pdf', '.docx', '.xlsx', '.pptx', '.odt', '.ods', '.odp', '.rtf']
+        const isBinary = binaryExts.some((ext) => file.name.toLowerCase().endsWith(ext))
+
+        if (isBinary || tool === 'llm') {
           const result = await ingestLLM(tmpPath, false, { heuristic })
           return NextResponse.json(result)
         }
-        // Default: symbolic (deterministic, no LLM)
+        // Text files: use symbolic (deterministic, no LLM)
         const result = await symIngest(tmpPath, false)
         return NextResponse.json(result)
       } finally {
