@@ -191,14 +191,22 @@ export default function DeployPage() {
                     </span>
                   </div>
                 </div>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {m.status === 'ready' && (
-                    <Link
-                      href="/playground"
-                      className="rounded-md bg-primary/10 px-3 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/20"
-                    >
-                      Chat →
-                    </Link>
+                    <>
+                      <Link
+                        href="/playground"
+                        className="rounded-md bg-primary/10 px-3 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/20"
+                      >
+                        Chat →
+                      </Link>
+                      <Link
+                        href={`/agents/register?model=${m.id}`}
+                        className="rounded-md bg-accent/10 px-3 py-1.5 text-[10px] font-medium text-accent hover:bg-accent/20"
+                      >
+                        Set up CAG Agent →
+                      </Link>
+                    </>
                   )}
                   <button
                     onClick={() => handleUndeploy(m.id)}

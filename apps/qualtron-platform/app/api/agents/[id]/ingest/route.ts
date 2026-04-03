@@ -25,7 +25,7 @@ export async function POST(
       return NextResponse.json(data, { status: res.status })
     }
 
-    // JSON body — URL ingest
+    // JSON body — URL ingest. Backend requires agent_id in body.
     const body = await req.json()
     const res = await fetch(`${BASE}/v1/agents/${id}/ingest/url`, {
       method: 'POST',
@@ -33,7 +33,7 @@ export async function POST(
         Authorization: `Bearer ${KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, agent_id: id }),
     })
     const data = await res.json()
     return NextResponse.json(data, { status: res.status })

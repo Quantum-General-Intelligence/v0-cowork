@@ -94,7 +94,8 @@ export async function POST(req: Request) {
                 try {
                   const json = JSON.parse(line.slice(6))
                   const content = json.choices?.[0]?.delta?.content
-                  if (content) controller.enqueue(new TextEncoder().encode(content))
+                  if (content)
+                    controller.enqueue(new TextEncoder().encode(content))
                 } catch {}
               }
             }
