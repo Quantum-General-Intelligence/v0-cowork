@@ -41,58 +41,28 @@ const API_KEY = process.env.CACHEDLLM_API_KEY ?? ''
 export async function GET() {
   const models: ModelOption[] = []
 
-  // ─── 1. Discover SGLang GPU models and brand them ─────────────────────────
+  // ─── 1. Check if SGLang is running (needed for Qualtron models to work) ───
   const sglangUrl = process.env.SGLANG_URL ?? 'http://127.0.0.1:18000'
+  let sglangModelId: string | null = null
   try {
     const res = await fetch(`${sglangUrl}/v1/models`)
     if (res.ok) {
       const data = await res.json()
-      for (const m of data.data ?? []) {
-        const branded = QUALTRON_NAMES[m.id]
-        models.push({
-          id: `qualtron:${m.id}`,
-          name: branded?.name ?? `Qualtron-GPU`,
-          provider: 'qualtron',
-          description:
-            branded?.description ?? `Qualtron GPU model — local inference.`,
-          category: 'Qualtron (GPU)',
-        })
-      }
+      sglangModelId = data.data?.[0]?.id ?? null
     }
   } catch {}
 
-  // ─── 2. Discover deployed Q-Inference models (Spine Cortex etc.) ──────────
-  try {
-    const res = await fetch(`${BASE_URL}/v1/qinference/models`, {
-      headers: { Authorization: `Bearer ${API_KEY}` },
-    })
-    if (res.ok) {
-      const data = await res.json()
-      for (const m of data.data ?? []) {
-        if (m.status !== 'ready' && m.status !== 'loading') continue
-        // Skip if it duplicates an SGLang model already added
-        const alreadyListed = models.some(
-          (existing) => existing.id === `qualtron:${m.variant_id}`,
-        )
-        if (alreadyListed) continue
-        models.push({
-          id: `qualtron:${m.id}`,
-          name: m.name || `Qualtron-${m.base_family}`,
-          provider: 'qualtron',
-          description: `Deployed model — ${m.base_family}, ${(m.context_tokens / 1000).toFixed(0)}K context.`,
-          category: 'Qualtron (Deployed)',
-        })
-      }
-    }
-  } catch {}
-
-  // ─── 3. Fallback if no Qualtron models discovered ─────────────────────────
-  if (models.length === 0) {
+  // ─── 2. Show Qualtron model (routes to SGLang) ────────────────────────────
+  // Only shown when SGLang is running — the model appears after user
+  // activates a Spine Cortex (frontend checks localStorage)
+  if (sglangModelId) {
+    const branded = QUALTRON_NAMES[sglangModelId]
     models.push({
-      id: 'qualtron:default',
-      name: 'Qualtron-120B-262K',
+      id: `qualtron:${sglangModelId}`,
+      name: branded?.name ?? 'Qualtron-GPU',
       provider: 'qualtron',
-      description: 'Default Qualtron model with CAG inference.',
+      description:
+        branded?.description ?? 'Qualtron cognitive model — GPU inference.',
       category: 'Qualtron (GPU)',
     })
   }

@@ -5,137 +5,90 @@ import Link from 'next/link'
 
 interface DeployedModel {
   id: string
-  variant_id: string
   name: string
   status: string
   base_family: string
   context_tokens: number
   vram_gb: number
   gpu_count: number
-  total_requests: number
-  total_tokens: number
-  source?: 'qinference' | 'sglang'
+  behavior?: string
+  createdAt?: string
 }
 
 const STATUS_CONFIG: Record<
   string,
-  { label: string; cls: string; canUndeploy: boolean }
+  { label: string; cls: string }
 > = {
   ready: {
     label: 'Ready',
     cls: 'bg-success/20 text-success',
-    canUndeploy: true,
   },
   loading: {
     label: 'Loading',
     cls: 'bg-warning/20 text-warning animate-pulse',
-    canUndeploy: true,
-  },
-  queued: {
-    label: 'Queued',
-    cls: 'bg-muted text-muted-foreground',
-    canUndeploy: true,
-  },
-  error: {
-    label: 'Error',
-    cls: 'bg-destructive/20 text-destructive',
-    canUndeploy: true,
   },
   stopped: {
     label: 'Stopped',
     cls: 'bg-muted text-muted-foreground',
-    canUndeploy: false,
   },
 }
 
-/** Map SGLang HuggingFace IDs to Qualtron branded names */
-const SGLANG_BRAND: Record<
-  string,
-  {
+interface CortexConfig {
+  name: string
+  behavior: string
+  stages: {
+    id: string
     name: string
-    family: string
-    context: number
-    vram: number
-    gpus: number
-  }
-> = {
-  'nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8': {
-    name: 'Qualtron-120B Cognitive Model',
-    family: 'coder-pro',
-    context: 262000,
-    vram: 138,
-    gpus: 2,
-  },
-  'nvidia/Nemotron-3-Super-49B-v1': {
-    name: 'Qualtron-49B Cognitive Model',
-    family: 'thinker',
-    context: 262000,
-    vram: 48,
-    gpus: 1,
-  },
-  'Qwen/Qwen3.5-4B': {
-    name: 'Qualtron-Mini-4B Cognitive Model',
-    family: 'mini',
-    context: 1048000,
-    vram: 11,
-    gpus: 1,
-  },
-  'nvidia/Nemotron-3-Nano-4B': {
-    name: 'Qualtron-Nano-4B Cognitive Model',
-    family: 'nano',
-    context: 524000,
-    vram: 16,
-    gpus: 1,
-  },
+    model: string
+    modelName?: string
+    qhmTokenCount: number
+  }[]
+  createdAt: string
 }
 
 export default function ModelInstancesPage() {
   const [models, setModels] = useState<DeployedModel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState<string | null>(null)
+  const [confirmUndeploy, setConfirmUndeploy] = useState(false)
+  const [undeploying, setUndeploying] = useState(false)
 
   const fetchModels = useCallback(async () => {
     const all: DeployedModel[] = []
 
-    // 1. Discover live SGLang GPU models (always running)
+    // Only show models that were deployed via Spine Cortex (saved in localStorage)
     try {
-      const res = await fetch('/api/models')
-      const data = await res.json()
-      for (const m of data.models ?? []) {
-        if (m.provider !== 'qualtron') continue
-        // Extract the raw model ID from qualtron:xxx
-        const rawId = m.id.replace('qualtron:', '')
-        const brand = SGLANG_BRAND[rawId]
-        all.push({
-          id: `sglang:${rawId}`,
-          variant_id: rawId,
-          name: brand?.name ?? m.name,
-          status: 'ready',
-          base_family: brand?.family ?? 'gpu',
-          context_tokens: brand?.context ?? 262000,
-          vram_gb: brand?.vram ?? 0,
-          gpu_count: brand?.gpus ?? 1,
-          total_requests: 0,
-          total_tokens: 0,
-          source: 'sglang',
-        })
-      }
-    } catch {}
+      const saved = JSON.parse(
+        localStorage.getItem('cortex-configs') ?? '[]',
+      ) as CortexConfig[]
+      if (saved.length > 0) {
+        const latest = saved[0]
+        // Check if SGLang is actually running
+        let sglangReady = false
+        try {
+          const res = await fetch('/api/models')
+          const data = await res.json()
+          sglangReady = (data.models ?? []).some(
+            (m: { provider: string }) => m.provider === 'qualtron',
+          )
+        } catch {}
 
-    // 2. Q-Inference deployed models (if any are active)
-    try {
-      const res = await fetch('/api/qinference/models')
-      const data = await res.json()
-      for (const m of data.data ?? []) {
-        if (
-          m.status !== 'ready' &&
-          m.status !== 'loading' &&
-          m.status !== 'queued'
-        )
-          continue
-        all.push({ ...m, source: 'qinference' as const })
+        if (sglangReady) {
+          // Show each stage as a deployed model
+          for (const stage of latest.stages) {
+            all.push({
+              id: `cortex:${latest.name}:${stage.id}`,
+              name: `${latest.name} — ${stage.name}`,
+              status: 'ready',
+              base_family: stage.modelName ?? stage.model,
+              context_tokens: stage.qhmTokenCount > 0 ? stage.qhmTokenCount : 262000,
+              vram_gb: 138,
+              gpu_count: 2,
+              behavior: latest.behavior,
+              createdAt: latest.createdAt,
+            })
+          }
+        }
       }
     } catch {}
 
@@ -150,30 +103,21 @@ export default function ModelInstancesPage() {
     return () => clearInterval(interval)
   }, [fetchModels])
 
-  const handleUndeploy = useCallback(
-    async (modelId: string) => {
-      // SGLang models can't be undeployed from the UI
-      if (modelId.startsWith('sglang:')) return
-      setDeleting(modelId)
-      setError(null)
-      try {
-        const res = await fetch(`/api/qinference/models/${modelId}`, {
-          method: 'DELETE',
-        })
-        if (!res.ok) {
-          const data = await res.json()
-          throw new Error(data.error ?? 'Undeploy failed')
-        }
-        setConfirmDelete(null)
-        await fetchModels()
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Undeploy failed')
-      } finally {
-        setDeleting(null)
-      }
-    },
-    [fetchModels],
-  )
+  const handleUndeployAll = useCallback(async () => {
+    setUndeploying(true)
+    setError(null)
+    try {
+      // Clear cortex configs and behavior from localStorage
+      localStorage.removeItem('cortex-configs')
+      localStorage.removeItem('cag-behavior')
+      setModels([])
+      setConfirmUndeploy(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed')
+    } finally {
+      setUndeploying(false)
+    }
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -183,26 +127,41 @@ export default function ModelInstancesPage() {
             Cognitive Models
           </h1>
           <p className="text-muted-foreground">
-            Active Qualtron cognitive models on GPU.
-            {models.length > 0 && (
-              <span className="ml-1 text-xs text-muted-foreground/60">
-                (auto-refreshes)
-              </span>
-            )}
+            Deployed Qualtron cognitive models on GPU.
           </p>
         </div>
         <div className="flex gap-2">
+          {models.length > 0 && !confirmUndeploy && (
+            <button
+              onClick={() => setConfirmUndeploy(true)}
+              className="rounded-md bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/20"
+            >
+              Undeploy All
+            </button>
+          )}
+          {confirmUndeploy && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-destructive">Remove all deployed models?</span>
+              <button
+                onClick={handleUndeployAll}
+                disabled={undeploying}
+                className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+              >
+                {undeploying ? '...' : 'Yes, Undeploy'}
+              </button>
+              <button
+                onClick={() => setConfirmUndeploy(false)}
+                className="rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
           <Link
             href="/llm/cortex"
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             New Cortex
-          </Link>
-          <Link
-            href="/llm/deploy"
-            className="rounded-md bg-muted px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/80"
-          >
-            Deploy Catalog
           </Link>
         </div>
       </div>
@@ -228,23 +187,17 @@ export default function ModelInstancesPage() {
           <div className="mb-3 text-3xl">🧠</div>
           <h3 className="text-sm font-semibold">No models deployed</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Deploy from the{' '}
-            <Link href="/llm/deploy" className="text-primary hover:underline">
-              catalog
-            </Link>{' '}
-            or create a{' '}
+            Create and activate a{' '}
             <Link href="/llm/cortex" className="text-primary hover:underline">
               Spine Cortex
-            </Link>
-            .
+            </Link>{' '}
+            to deploy cognitive models.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {models.map((m) => {
             const status = STATUS_CONFIG[m.status] ?? STATUS_CONFIG.stopped
-            const isConfirming = confirmDelete === m.id
-            const isSglang = m.source === 'sglang'
             return (
               <div
                 key={m.id}
@@ -253,11 +206,9 @@ export default function ModelInstancesPage() {
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="text-sm font-semibold">{m.name}</h3>
                   <div className="flex items-center gap-1.5">
-                    {isSglang && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                        GPU
-                      </span>
-                    )}
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      GPU
+                    </span>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${status.cls}`}
                     >
@@ -268,34 +219,30 @@ export default function ModelInstancesPage() {
 
                 <div className="space-y-1 text-xs text-muted-foreground">
                   <div className="flex justify-between">
-                    <span>Family</span>
+                    <span>Model</span>
                     <span className="font-mono">{m.base_family}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Context</span>
                     <span className="font-mono">
-                      {(m.context_tokens / 1000).toFixed(0)}K
+                      {m.context_tokens > 1000
+                        ? `${(m.context_tokens / 1000).toFixed(0)}K`
+                        : `${m.context_tokens}`}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>VRAM</span>
                     <span className="font-mono">{m.vram_gb} GB</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>GPUs</span>
-                    <span className="font-mono">{m.gpu_count}</span>
-                  </div>
-                  {!isSglang && (
+                  {m.behavior && (
                     <div className="flex justify-between">
-                      <span>Requests</span>
-                      <span className="font-mono">
-                        {m.total_requests.toLocaleString()}
-                      </span>
+                      <span>Behavior</span>
+                      <span className="font-mono capitalize">{m.behavior}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3">
                   {m.status === 'ready' && (
                     <Link
                       href="/playground"
@@ -303,34 +250,6 @@ export default function ModelInstancesPage() {
                     >
                       Chat →
                     </Link>
-                  )}
-                  {!isSglang && status.canUndeploy && !isConfirming && (
-                    <button
-                      onClick={() => setConfirmDelete(m.id)}
-                      className="rounded-md bg-destructive/10 px-3 py-1.5 text-[10px] font-medium text-destructive hover:bg-destructive/20"
-                    >
-                      Undeploy
-                    </button>
-                  )}
-                  {isConfirming && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-destructive">
-                        Confirm?
-                      </span>
-                      <button
-                        onClick={() => handleUndeploy(m.id)}
-                        disabled={deleting === m.id}
-                        className="rounded bg-destructive px-2 py-1 text-[10px] font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
-                      >
-                        {deleting === m.id ? '...' : 'Yes'}
-                      </button>
-                      <button
-                        onClick={() => setConfirmDelete(null)}
-                        className="rounded bg-muted px-2 py-1 text-[10px] text-muted-foreground"
-                      >
-                        No
-                      </button>
-                    </div>
                   )}
                 </div>
               </div>

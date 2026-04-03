@@ -48,11 +48,7 @@ function getSystemPrompt(behaviorId?: string): string | null {
 
 export async function POST(req: Request) {
   const body = await req.json()
-  const {
-    messages: rawMessages,
-    model = 'qualtron:default',
-    behavior,
-  } = body
+  const { messages: rawMessages, model = 'qualtron:default', behavior } = body
 
   const messages = normalizeMessages(rawMessages ?? [])
   if (messages.length === 0) {
@@ -69,10 +65,7 @@ export async function POST(req: Request) {
     const finalMessages = hasSystem
       ? messages
       : systemPrompt
-        ? [
-            { role: 'system' as const, content: systemPrompt },
-            ...messages,
-          ]
+        ? [{ role: 'system' as const, content: systemPrompt }, ...messages]
         : messages
 
     // Get the actual model name from SGLang
@@ -155,8 +148,7 @@ export async function POST(req: Request) {
     baseURL: 'https://openrouter.ai/api/v1',
     apiKey: process.env.OPENROUTER_API_KEY ?? '',
     headers: {
-      'HTTP-Referer':
-        process.env.NEXT_PUBLIC_APP_URL ?? 'https://qualtron.ai',
+      'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://qualtron.ai',
       'X-Title': 'Qualtron Platform',
     },
   })

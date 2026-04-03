@@ -57,15 +57,36 @@ export function PlaygroundClient() {
 
   const isLoading = status === 'streaming' || status === 'submitted'
 
-  // Fetch models
+  // Check if a cortex is deployed (controls whether Qualtron model shows)
+  const [hasCortex, setHasCortex] = useState(false)
+  useEffect(() => {
+    try {
+      const configs = JSON.parse(
+        localStorage.getItem('cortex-configs') ?? '[]',
+      )
+      setHasCortex(configs.length > 0)
+    } catch {}
+  }, [])
+
+  // Fetch models — filter Qualtron unless cortex is deployed
   useEffect(() => {
     fetch('/api/models')
       .then((r) => r.json())
       .then((d) => {
-        if (d.models?.length) setModels(d.models)
+        let list = d.models ?? []
+        if (!hasCortex) {
+          list = list.filter(
+            (m: ModelOption) => m.provider !== 'qualtron',
+          )
+        }
+        if (list.length) setModels(list)
+        // Auto-select first model
+        if (list.length && !list.find((m: ModelOption) => m.id === selectedModel)) {
+          setSelectedModel(list[0].id)
+        }
       })
       .catch(() => {})
-  }, [])
+  }, [hasCortex])
 
   // Derive provider type
   const selectedModelInfo = models.find((m) => m.id === selectedModel)
@@ -193,9 +214,9 @@ export function PlaygroundClient() {
               setMessages([])
               setActiveSessionId(null)
             }}
-            className="rounded-md px-2 py-1 text-[10px] text-muted-foreground hover:bg-muted"
+            className="rounded-md border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80"
           >
-            Clear
+            New Chat
           </button>
         </div>
       </div>
@@ -207,8 +228,7 @@ export function PlaygroundClient() {
             <div className="mb-4 text-4xl">⚡</div>
             <h2 className="text-lg font-semibold">Qualtron Playground</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Chat with Qualtron cognitive models (CAG) or Pi agents with
-              tools.
+              Chat with Qualtron cognitive models (CAG) or Pi agents with tools.
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {[
