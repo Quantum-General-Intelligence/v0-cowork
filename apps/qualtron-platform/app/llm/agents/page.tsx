@@ -14,6 +14,7 @@ interface DeployedModel {
   gpu_count: number
   total_requests: number
   total_tokens: number
+  source?: 'qinference' | 'sglang'
 }
 
 const STATUS_CONFIG: Record<
@@ -47,6 +48,47 @@ const STATUS_CONFIG: Record<
   },
 }
 
+/** Map SGLang HuggingFace IDs to Qualtron branded names */
+const SGLANG_BRAND: Record<
+  string,
+  {
+    name: string
+    family: string
+    context: number
+    vram: number
+    gpus: number
+  }
+> = {
+  'nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8': {
+    name: 'Qualtron-120B Cognitive Model',
+    family: 'coder-pro',
+    context: 262000,
+    vram: 138,
+    gpus: 2,
+  },
+  'nvidia/Nemotron-3-Super-49B-v1': {
+    name: 'Qualtron-49B Cognitive Model',
+    family: 'thinker',
+    context: 262000,
+    vram: 48,
+    gpus: 1,
+  },
+  'Qwen/Qwen3.5-4B': {
+    name: 'Qualtron-Mini-4B Cognitive Model',
+    family: 'mini',
+    context: 1048000,
+    vram: 11,
+    gpus: 1,
+  },
+  'nvidia/Nemotron-3-Nano-4B': {
+    name: 'Qualtron-Nano-4B Cognitive Model',
+    family: 'nano',
+    context: 524000,
+    vram: 16,
+    gpus: 1,
+  },
+}
+
 export default function ModelInstancesPage() {
   const [models, setModels] = useState<DeployedModel[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,34 +97,63 @@ export default function ModelInstancesPage() {
   const [deleting, setDeleting] = useState<string | null>(null)
 
   const fetchModels = useCallback(async () => {
+    const all: DeployedModel[] = []
+
+    // 1. Discover live SGLang GPU models (always running)
+    try {
+      const res = await fetch('/api/models')
+      const data = await res.json()
+      for (const m of data.models ?? []) {
+        if (m.provider !== 'qualtron') continue
+        // Extract the raw model ID from qualtron:xxx
+        const rawId = m.id.replace('qualtron:', '')
+        const brand = SGLANG_BRAND[rawId]
+        all.push({
+          id: `sglang:${rawId}`,
+          variant_id: rawId,
+          name: brand?.name ?? m.name,
+          status: 'ready',
+          base_family: brand?.family ?? 'gpu',
+          context_tokens: brand?.context ?? 262000,
+          vram_gb: brand?.vram ?? 0,
+          gpu_count: brand?.gpus ?? 1,
+          total_requests: 0,
+          total_tokens: 0,
+          source: 'sglang',
+        })
+      }
+    } catch {}
+
+    // 2. Q-Inference deployed models (if any are active)
     try {
       const res = await fetch('/api/qinference/models')
       const data = await res.json()
-      // Only show models that are actually active (ready, loading, queued)
-      const active = (data.data ?? []).filter(
-        (m: DeployedModel) =>
-          m.status === 'ready' ||
-          m.status === 'loading' ||
-          m.status === 'queued',
-      )
-      setModels(active)
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load')
-    } finally {
-      setLoading(false)
-    }
+      for (const m of data.data ?? []) {
+        if (
+          m.status !== 'ready' &&
+          m.status !== 'loading' &&
+          m.status !== 'queued'
+        )
+          continue
+        all.push({ ...m, source: 'qinference' as const })
+      }
+    } catch {}
+
+    setModels(all)
+    setError(null)
+    setLoading(false)
   }, [])
 
   useEffect(() => {
     fetchModels()
-    // Auto-refresh every 10s to catch status changes
     const interval = setInterval(fetchModels, 10000)
     return () => clearInterval(interval)
   }, [fetchModels])
 
   const handleUndeploy = useCallback(
     async (modelId: string) => {
+      // SGLang models can't be undeployed from the UI
+      if (modelId.startsWith('sglang:')) return
       setDeleting(modelId)
       setError(null)
       try {
@@ -112,7 +183,7 @@ export default function ModelInstancesPage() {
             Cognitive Models
           </h1>
           <p className="text-muted-foreground">
-            Active Qualtron cognitive models deployed on GPU.
+            Active Qualtron cognitive models on GPU.
             {models.length > 0 && (
               <span className="ml-1 text-xs text-muted-foreground/60">
                 (auto-refreshes)
@@ -173,6 +244,7 @@ export default function ModelInstancesPage() {
           {models.map((m) => {
             const status = STATUS_CONFIG[m.status] ?? STATUS_CONFIG.stopped
             const isConfirming = confirmDelete === m.id
+            const isSglang = m.source === 'sglang'
             return (
               <div
                 key={m.id}
@@ -180,11 +252,18 @@ export default function ModelInstancesPage() {
               >
                 <div className="mb-2 flex items-center justify-between">
                   <h3 className="text-sm font-semibold">{m.name}</h3>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${status.cls}`}
-                  >
-                    {status.label}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {isSglang && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        GPU
+                      </span>
+                    )}
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${status.cls}`}
+                    >
+                      {status.label}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-1 text-xs text-muted-foreground">
@@ -206,12 +285,14 @@ export default function ModelInstancesPage() {
                     <span>GPUs</span>
                     <span className="font-mono">{m.gpu_count}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Requests</span>
-                    <span className="font-mono">
-                      {m.total_requests.toLocaleString()}
-                    </span>
-                  </div>
+                  {!isSglang && (
+                    <div className="flex justify-between">
+                      <span>Requests</span>
+                      <span className="font-mono">
+                        {m.total_requests.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-3 flex gap-2">
@@ -223,7 +304,7 @@ export default function ModelInstancesPage() {
                       Chat →
                     </Link>
                   )}
-                  {status.canUndeploy && !isConfirming && (
+                  {!isSglang && status.canUndeploy && !isConfirming && (
                     <button
                       onClick={() => setConfirmDelete(m.id)}
                       className="rounded-md bg-destructive/10 px-3 py-1.5 text-[10px] font-medium text-destructive hover:bg-destructive/20"
