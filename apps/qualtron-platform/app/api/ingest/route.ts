@@ -24,7 +24,7 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? ''
 const SPACY_URL = 'http://localhost:8100'
 const CORENLP_URL = 'http://localhost:9000'
 
-// QHP-CORE env vars for LLM-based ingest (fallback)
+// QHP-CORE env vars for LLM-based ingest — uses GPT-5.2 via OpenRouter
 function qhpEnv(): string {
   const vars: string[] = []
   const openaiKey =
@@ -32,8 +32,9 @@ function qhpEnv(): string {
   vars.push(`OPENAI_API_KEY="${openaiKey}"`)
   if (!process.env.OPENAI_API_KEY && process.env.OPENROUTER_API_KEY) {
     vars.push('OPENAI_BASE_URL="https://openrouter.ai/api/v1"')
-    vars.push('LLM_MODEL="openai/gpt-4o"')
   }
+  // Always use GPT-5.2 for QHP extraction
+  vars.push('LLM_MODEL="openai/gpt-5.2"')
   vars.push(
     `SUPABASE_URL="${process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co'}"`,
   )
@@ -104,9 +105,8 @@ async function symIngest(source: string, isText: boolean) {
 async function ingestLLM(
   source: string,
   isText: boolean,
-  options?: { heuristic?: boolean },
 ) {
-  const hFlag = options?.heuristic ? '--heuristic' : ''
+  const hFlag = '' // No heuristic — full LLM extraction with GPT-5.2
   const sourceArg = isText
     ? `--text "${source.replace(/"/g, '\\"')}"`
     : `"${source}"`
@@ -176,15 +176,27 @@ export async function POST(req: Request) {
         }
 
         // Binary files (PDF, DOCX, etc.) must use LLM pipeline — sym-ingest only reads UTF-8 text
-        const binaryExts = ['.pdf', '.docx', '.xlsx', '.pptx', '.odt', '.ods', '.odp', '.rtf']
-        const isBinary = binaryExts.some((ext) => file.name.toLowerCase().endsWith(ext))
+        const binaryExts = [
+          '.pdf',
+          '.docx',
+          '.xlsx',
+          '.pptx',
+          '.odt',
+          '.ods',
+          '.odp',
+          '.rtf',
+        ]
+        const isBinary = binaryExts.some((ext) =>
+          file.name.toLowerCase().endsWith(ext),
+        )
 
-        if (isBinary || tool === 'llm') {
-          const result = await ingestLLM(tmpPath, false, { heuristic })
+        if (tool === 'sym') {
+          // Explicit symbolic mode — only for text files
+          const result = await symIngest(tmpPath, false)
           return NextResponse.json(result)
         }
-        // Text files: use symbolic (deterministic, no LLM)
-        const result = await symIngest(tmpPath, false)
+        // Default: LLM mode with GPT-5.2, no heuristic
+        const result = await ingestLLM(tmpPath, false)
         return NextResponse.json(result)
       } finally {
         await rm(tmpDir, { recursive: true, force: true }).catch(() => {})
@@ -218,7 +230,7 @@ export async function POST(req: Request) {
 
     let result: unknown
 
-    const useLLM = (options as { mode?: string })?.mode === 'llm'
+    const useSym = (options as { mode?: string })?.mode === 'sym'
 
     switch (method) {
       case 'github':
@@ -229,31 +241,29 @@ export async function POST(req: Request) {
         break
 
       case 'url':
-        // URLs: fetch content first, then run sym-ingest on the text
-        try {
-          const urlRes = await fetch(source)
-          const urlText = await urlRes.text()
-          if (useLLM) {
-            result = await ingestLLM(urlText, true)
-          } else {
-            result = await symIngest(urlText.slice(0, 50000), true) // limit to 50k chars
+        // Default: LLM mode with GPT-5.2, no heuristic
+        if (useSym) {
+          try {
+            const urlRes = await fetch(source)
+            const urlText = await urlRes.text()
+            result = await symIngest(urlText.slice(0, 50000), true)
+          } catch (fetchErr) {
+            return NextResponse.json(
+              { error: 'Failed to fetch URL', detail: String(fetchErr) },
+              { status: 502 },
+            )
           }
-        } catch (fetchErr) {
-          return NextResponse.json(
-            { error: 'Failed to fetch URL', detail: String(fetchErr) },
-            { status: 502 },
-          )
+        } else {
+          result = await ingestLLM(source, false)
         }
         break
 
       case 'text':
-        // Text: use sym-ingest by default (deterministic), LLM if requested
-        if (useLLM) {
-          result = await ingestLLM(source, true, {
-            heuristic: (options as { heuristic?: boolean })?.heuristic,
-          })
-        } else {
+        // Default: LLM mode with GPT-5.2, no heuristic
+        if (useSym) {
           result = await symIngest(source, true)
+        } else {
+          result = await ingestLLM(source, true)
         }
         break
 
