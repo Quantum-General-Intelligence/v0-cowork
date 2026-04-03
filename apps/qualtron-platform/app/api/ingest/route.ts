@@ -191,26 +191,46 @@ export async function POST(req: Request) {
           const result = await symIngest(tmpPath, false)
           return NextResponse.json(result)
         }
-        // For PDFs: extract text first, then sym-ingest (fast, deterministic)
+        // For PDFs: extract with opendataloader-pdf (best accuracy), then sym-ingest
         if (isBinary) {
           try {
-            const { stdout: pdfText } = await execAsync(
-              `python3 -c "import pdfplumber; pdf=pdfplumber.open('${tmpPath}'); print('\\n'.join(p.extract_text() or '' for p in pdf.pages))"`,
-              { maxBuffer: 50 * 1024 * 1024, timeout: 30000 },
+            // Step 1: opendataloader-pdf extracts structured text from PDF
+            await execAsync(
+              `python3 -c "from opendataloader_pdf import convert; convert('${tmpPath}')"`,
+              { maxBuffer: 50 * 1024 * 1024, timeout: 60000 },
             )
-            if (pdfText.trim().length > 0) {
-              // Chunk to avoid CoreNLP crash on large text
-              const chunkSize = 5000
-              const text = pdfText.trim().slice(0, chunkSize)
+            // opendataloader writes JSON next to the PDF
+            const jsonPath = tmpPath.replace(/\.[^.]+$/, '.json')
+            const { readFileSync } = await import('node:fs')
+            let pdfText = ''
+            try {
+              const json = JSON.parse(readFileSync(jsonPath, 'utf-8'))
+              pdfText = (json.kids ?? [])
+                .map((k: { content?: string }) => k.content ?? '')
+                .filter(Boolean)
+                .join('\n')
+            } catch {
+              // Fallback: pdfplumber
+              const { stdout } = await execAsync(
+                `python3 -c "import pdfplumber; pdf=pdfplumber.open('${tmpPath}'); print('\\n'.join(p.extract_text() or '' for p in pdf.pages))"`,
+                { maxBuffer: 50 * 1024 * 1024, timeout: 30000 },
+              )
+              pdfText = stdout.trim()
+            }
+
+            if (pdfText.length > 0) {
+              // Step 2: sym-ingest on extracted text (first 5K to avoid CoreNLP crash)
+              const text = pdfText.slice(0, 5000)
               const result = await symIngest(text, true)
               return NextResponse.json({
                 ...result,
-                totalChars: pdfText.trim().length,
+                extractor: 'opendataloader-pdf',
+                totalChars: pdfText.length,
                 processedChars: text.length,
               })
             }
           } catch {
-            // PDF extraction failed — fall through to LLM
+            // Extraction failed — fall through to LLM
           }
         }
         // Default: LLM mode with GPT-5.2
