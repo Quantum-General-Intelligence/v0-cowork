@@ -677,24 +677,39 @@ function QHPResultsViewer({ result }: { result: unknown }) {
 
   const r = result as Record<string, unknown>
   const extractionMode = r.extraction_mode as string | undefined
-  const classification = r.classification ?? r.state ?? r.heuristic_content_type ?? null
+  const classification =
+    r.classification ?? r.state ?? r.heuristic_content_type ?? null
   // Handle both LLM format (rules_list) and sym format (qlang)
   const qlangItems = (r.qlang ?? []) as { role: string; text: string }[]
   const rulesList = (r.rules_list ?? []) as { type: string; text: string }[]
-  const allRules = rulesList.length > 0
-    ? rulesList
-    : qlangItems.map((q) => ({ type: q.role, text: q.text.replace(/^\w+:\s*/, '') }))
+  const allRules =
+    rulesList.length > 0
+      ? rulesList
+      : qlangItems.map((q) => ({
+          type: q.role,
+          text: q.text.replace(/^\w+:\s*/, ''),
+        }))
   // Role distribution
   const qlangRoles = r.qlang_roles as Record<string, number> | undefined
-  const roleCounts = qlangRoles ?? allRules.reduce<Record<string, number>>((acc, rule) => {
-    acc[rule.type] = (acc[rule.type] ?? 0) + 1
-    return acc
-  }, {})
+  const roleCounts =
+    qlangRoles ??
+    allRules.reduce<Record<string, number>>((acc, rule) => {
+      acc[rule.type] = (acc[rule.type] ?? 0) + 1
+      return acc
+    }, {})
   // Timing
   const meta = r.meta as Record<string, unknown> | undefined
-  const timingDetail = (meta?.timing_ms ?? r.timing_detail) as Record<string, number> | undefined
-  const totalTiming = r.timing_ms as number | undefined
-    ?? (timingDetail ? Object.values(timingDetail).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0) : undefined)
+  const timingDetail = (meta?.timing_ms ?? r.timing_detail) as
+    | Record<string, number>
+    | undefined
+  const totalTiming =
+    (r.timing_ms as number | undefined) ??
+    (timingDetail
+      ? Object.values(timingDetail).reduce(
+          (a, b) => a + (typeof b === 'number' ? b : 0),
+          0,
+        )
+      : undefined)
 
   return (
     <div className="mb-2 rounded border border-border bg-background">

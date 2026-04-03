@@ -19,7 +19,7 @@ const execAsync = promisify(exec)
  * For file uploads, use multipart/form-data with "file" field + "tool" field
  */
 
-const QHP_CLI = 'tsx /workspace/QHP-CORE/packages/cli/index.ts'
+const QHP_CLI = '/usr/local/bin/tsx /workspace/QHP-CORE/packages/cli/index.ts'
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? ''
 const SPACY_URL = 'http://localhost:8100'
 const CORENLP_URL = 'http://localhost:9000'
@@ -71,10 +71,12 @@ async function ingestGitHub(
 
 async function symIngest(source: string, isText: boolean) {
   const tmpOut = `/tmp/sym-result-${Date.now()}.json`
-  const sourceArg = isText ? `--text "${source.replace(/"/g, '\\"')}"` : `"${source}"`
+  const sourceArg = isText
+    ? `--text "${source.replace(/"/g, '\\"')}"`
+    : `"${source}"`
   const { stdout, stderr } = await execAsync(
     `${QHP_CLI} sym-ingest ${sourceArg} --tools-url ${SPACY_URL} --corenlp-url ${CORENLP_URL} --output "${tmpOut}"`,
-    { maxBuffer: 10 * 1024 * 1024, timeout: 60000 },
+    { maxBuffer: 10 * 1024 * 1024, timeout: 120000, shell: '/bin/bash', env: { ...process.env, PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin' } },
   )
   // Read the JSON result file
   let result: unknown = { raw: stdout }
@@ -91,9 +93,15 @@ async function symIngest(source: string, isText: boolean) {
 
 // ─── LLM-based ingestion via QHP-CORE ingest (fallback) ─────────────────────
 
-async function ingestLLM(source: string, isText: boolean, options?: { heuristic?: boolean }) {
+async function ingestLLM(
+  source: string,
+  isText: boolean,
+  options?: { heuristic?: boolean },
+) {
   const hFlag = options?.heuristic ? '--heuristic' : ''
-  const sourceArg = isText ? `--text "${source.replace(/"/g, '\\"')}"` : `"${source}"`
+  const sourceArg = isText
+    ? `--text "${source.replace(/"/g, '\\"')}"`
+    : `"${source}"`
   const { stdout, stderr } = await execAsync(
     `${qhpEnv()} ${QHP_CLI} ingest ${sourceArg} --json ${hFlag}`,
     { maxBuffer: 10 * 1024 * 1024, timeout: 180000, shell: '/bin/bash' },
@@ -219,7 +227,9 @@ export async function POST(req: Request) {
       case 'text':
         // Text: use sym-ingest by default (deterministic), LLM if requested
         if (useLLM) {
-          result = await ingestLLM(source, true, { heuristic: (options as { heuristic?: boolean })?.heuristic })
+          result = await ingestLLM(source, true, {
+            heuristic: (options as { heuristic?: boolean })?.heuristic,
+          })
         } else {
           result = await symIngest(source, true)
         }
