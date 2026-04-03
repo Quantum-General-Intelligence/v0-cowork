@@ -76,7 +76,15 @@ async function symIngest(source: string, isText: boolean) {
     : `"${source}"`
   const { stdout, stderr } = await execAsync(
     `${QHP_CLI} sym-ingest ${sourceArg} --tools-url ${SPACY_URL} --corenlp-url ${CORENLP_URL} --output "${tmpOut}"`,
-    { maxBuffer: 10 * 1024 * 1024, timeout: 120000, shell: '/bin/bash', env: { ...process.env, PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin' } },
+    {
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 120000,
+      shell: '/bin/bash',
+      env: {
+        ...process.env,
+        PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
+      },
+    },
   )
   // Read the JSON result file
   let result: unknown = { raw: stdout }
@@ -216,11 +224,20 @@ export async function POST(req: Request) {
         break
 
       case 'url':
-        // URLs: use sym-ingest by default, LLM if requested
-        if (useLLM) {
-          result = await ingestLLM(source, false)
-        } else {
-          result = await symIngest(source, false)
+        // URLs: fetch content first, then run sym-ingest on the text
+        try {
+          const urlRes = await fetch(source)
+          const urlText = await urlRes.text()
+          if (useLLM) {
+            result = await ingestLLM(urlText, true)
+          } else {
+            result = await symIngest(urlText.slice(0, 50000), true) // limit to 50k chars
+          }
+        } catch (fetchErr) {
+          return NextResponse.json(
+            { error: 'Failed to fetch URL', detail: String(fetchErr) },
+            { status: 502 },
+          )
         }
         break
 
