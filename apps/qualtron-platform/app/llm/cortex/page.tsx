@@ -40,7 +40,7 @@ const DEFAULT_STAGES: CortexStage[] = [
     name: 'Retrieval Cortex',
     role: 'Tier 1 — QHP Fast Retrieval',
     description:
-      'Lightweight models (Nano/Mini) for classification, rule extraction, normalization.',
+      'Lightweight model (Nano/Mini) for classification, rule extraction, and normalization.',
     model: null,
     qhmStatus: 'empty',
     qhmTokenCount: 0,
@@ -50,23 +50,10 @@ const DEFAULT_STAGES: CortexStage[] = [
   },
   {
     id: 'reasoning',
-    name: 'Reasoning Cortex',
-    role: 'Tier 2 — Thinker',
+    name: 'Reasoning & Analysis Cortex',
+    role: 'Tier 2 — Deep Reasoning',
     description:
-      'Mid-size model (Coder/Thinker) with thinking. Validates evidence, reasons step-by-step.',
-    model: null,
-    qhmStatus: 'empty',
-    qhmTokenCount: 0,
-    qhmFileCount: 0,
-    qhmError: null,
-    qhmResult: null,
-  },
-  {
-    id: 'deep',
-    name: 'Deep Analysis Cortex',
-    role: 'Tier 3 — Enterprise',
-    description:
-      'Large model (Thinker/Coder Pro) for comprehensive answers with full context.',
+      'Large model (Coder Pro/Thinker) with thinking. Full context analysis, evidence validation, comprehensive answers.',
     model: null,
     qhmStatus: 'empty',
     qhmTokenCount: 0,
@@ -549,6 +536,7 @@ export default function SpineCortexPage() {
         stages={stages}
         cortexName={cortexName}
         catalogModels={catalogModels}
+        behavior={selectedBehavior}
       />
     </div>
   )
@@ -558,48 +546,31 @@ function DeploySection({
   stages,
   cortexName,
   catalogModels,
+  behavior,
 }: {
   stages: CortexStage[]
   cortexName: string
   catalogModels: CatalogModel[]
+  behavior: string
 }) {
   const [deploying, setDeploying] = useState(false)
   const [deployStatus, setDeployStatus] = useState<string | null>(null)
-  const [deployedIds, setDeployedIds] = useState<string[]>([])
+  const [deployed, setDeployed] = useState(false)
 
+  const stageCount = stages.length
   const allModelsSet = stages.every((s) => s.model)
   const canDeploy = allModelsSet && cortexName.trim().length > 0
 
   const handleDeploy = async () => {
     if (!canDeploy) return
     setDeploying(true)
-    setDeployStatus('Deploying 3 models...')
-    const ids: string[] = []
+    setDeployStatus(`Deploying ${stageCount} models...`)
 
     try {
-      for (let i = 0; i < stages.length; i++) {
-        const stage = stages[i]
-        if (!stage.model) continue
-        const name = `${cortexName.trim()} — ${stage.name}`
-        setDeployStatus(`Deploying ${i + 1}/3: ${stage.name}...`)
-
-        const res = await fetch('/api/qinference/models', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ variant_id: stage.model, name }),
-        })
-        const data = await res.json()
-        if (!res.ok)
-          throw new Error(data.error ?? `Failed to deploy ${stage.name}`)
-        ids.push(data.id)
-      }
-
-      setDeployedIds(ids)
-      setDeployStatus('All 3 cortexes deployed!')
-
-      // Save config to localStorage
+      // Save config to localStorage (the models run on SGLang already)
       const config = {
         name: cortexName,
+        behavior,
         stages: stages.map((s) => ({
           id: s.id,
           name: s.name,
@@ -607,12 +578,19 @@ function DeploySection({
           modelName: catalogModels.find((m) => m.id === s.model)?.name,
           qhmTokenCount: s.qhmTokenCount,
         })),
-        deployedModelIds: ids,
         createdAt: new Date().toISOString(),
       }
       const saved = JSON.parse(localStorage.getItem('cortex-configs') ?? '[]')
       saved.unshift(config)
       localStorage.setItem('cortex-configs', JSON.stringify(saved.slice(0, 20)))
+
+      // Save active behavior for the Playground to pick up
+      localStorage.setItem('cag-behavior', behavior)
+
+      setDeployed(true)
+      setDeployStatus(
+        `Spine Cortex "${cortexName}" activated with ${stageCount} stages!`,
+      )
     } catch (err) {
       setDeployStatus(
         `Error: ${err instanceof Error ? err.message : 'Deploy failed'}`,
@@ -634,18 +612,19 @@ function DeploySection({
             ? 'Deploying...'
             : !cortexName.trim()
               ? 'Name Required'
-              : 'Deploy Spine Cortex'}
+              : 'Activate Spine Cortex'}
         </button>
         <span className="self-center text-xs text-muted-foreground">
-          {stages.filter((s) => s.model).length}/3 models ·{' '}
-          {stages.filter((s) => s.qhmStatus === 'ready').length}/3 QHM loaded
+          {stages.filter((s) => s.model).length}/{stageCount} models ·{' '}
+          {stages.filter((s) => s.qhmStatus === 'ready').length}/{stageCount}{' '}
+          QHM loaded
         </span>
       </div>
 
       {deployStatus && (
         <div
           className={`rounded-lg border p-3 text-sm ${
-            deployedIds.length === 3
+            deployed
               ? 'border-accent/50 bg-accent/10 text-accent'
               : deploying
                 ? 'border-primary/50 bg-primary/10 text-primary'
@@ -656,13 +635,13 @@ function DeploySection({
         </div>
       )}
 
-      {deployedIds.length === 3 && (
+      {deployed && (
         <div className="flex gap-3">
           <Link
             href="/playground"
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
           >
-            Chat in Playground
+            Chat in Playground →
           </Link>
           <Link
             href="/llm/agents"

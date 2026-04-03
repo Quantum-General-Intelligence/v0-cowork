@@ -98,87 +98,14 @@ export async function GET() {
   }
 
   // ─── 4. Pi Agents ─────────────────────────────────────────────────────────
-  models.push(
-    {
-      id: 'pi:qualtron:120b-262k',
-      name: 'Pi-Qualtron-120B',
-      provider: 'pi',
-      description:
-        'Pi Agent with tools (read, bash) + Qualtron-120B CAG inference.',
-      category: 'Pi Agents',
-    },
-    {
-      id: 'pi:openrouter:anthropic/claude-sonnet-4',
-      name: 'Pi-Claude-Sonnet-4',
-      provider: 'pi',
-      description: 'Pi Agent with tools + Claude Sonnet 4 via OpenRouter.',
-      category: 'Pi Agents',
-    },
-    {
-      id: 'pi:openrouter:openai/gpt-4o',
-      name: 'Pi-GPT-4o',
-      provider: 'pi',
-      description: 'Pi Agent with tools + GPT-4o via OpenRouter.',
-      category: 'Pi Agents',
-    },
-  )
-
-  // ─── 5. OpenRouter models ─────────────────────────────────────────────────
-  models.push(
-    {
-      id: 'openrouter:anthropic/claude-sonnet-4',
-      name: 'Claude Sonnet 4',
-      provider: 'openrouter',
-      description:
-        'Anthropic Claude Sonnet 4 — fast, capable, great for coding.',
-      category: 'Anthropic',
-    },
-    {
-      id: 'openrouter:anthropic/claude-opus-4',
-      name: 'Claude Opus 4',
-      provider: 'openrouter',
-      description:
-        'Anthropic Claude Opus 4 — most capable model for complex reasoning.',
-      category: 'Anthropic',
-    },
-    {
-      id: 'openrouter:openai/gpt-4o',
-      name: 'GPT-4o',
-      provider: 'openrouter',
-      description: 'OpenAI GPT-4o — multimodal, fast, great all-rounder.',
-      category: 'OpenAI',
-    },
-    {
-      id: 'openrouter:openai/o3-mini',
-      name: 'o3-mini',
-      provider: 'openrouter',
-      description:
-        'OpenAI o3-mini — reasoning model, great for math and logic.',
-      category: 'OpenAI',
-    },
-    {
-      id: 'openrouter:meta-llama/llama-3.1-70b-instruct',
-      name: 'Llama 3.1 70B',
-      provider: 'openrouter',
-      description:
-        'Meta Llama 3.1 70B — open-source, strong general performance.',
-      category: 'Open Source',
-    },
-    {
-      id: 'openrouter:qwen/qwen-2.5-72b-instruct',
-      name: 'Qwen 2.5 72B',
-      provider: 'openrouter',
-      description: 'Alibaba Qwen 2.5 72B — excellent for multilingual tasks.',
-      category: 'Open Source',
-    },
-    {
-      id: 'openrouter:google/gemini-2.0-flash-001',
-      name: 'Gemini 2.0 Flash',
-      provider: 'openrouter',
-      description: 'Google Gemini 2.0 Flash — fast and efficient.',
-      category: 'Google',
-    },
-  )
+  models.push({
+    id: 'pi:qualtron:120b-262k',
+    name: 'Pi-Qualtron-120B',
+    provider: 'pi',
+    description:
+      'Pi Agent with tools (read, write, bash) + Qualtron-120B CAG inference.',
+    category: 'Pi Agents',
+  })
 
   return NextResponse.json({ models })
 }

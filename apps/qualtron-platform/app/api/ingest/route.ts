@@ -110,7 +110,13 @@ interface SymResult {
   entities?: unknown[]
   sentences?: unknown[]
   cnl_results?: unknown[]
-  meta?: { timing_ms?: Record<string, number>; sentence_count?: number; word_count?: number; entity_count?: number; [k: string]: unknown }
+  meta?: {
+    timing_ms?: Record<string, number>
+    sentence_count?: number
+    word_count?: number
+    entity_count?: number
+    [k: string]: unknown
+  }
   counts?: Record<string, number>
 }
 
@@ -134,19 +140,29 @@ function mergeSymResults(parts: SymResult[]): SymResult {
       merged.qlang!.push({ ...q, index: q.index + sentenceOffset })
     }
     for (const pr of (p.predicates ?? []) as { sentence_index: number }[]) {
-      merged.predicates!.push({ ...pr, sentence_index: pr.sentence_index + sentenceOffset })
+      merged.predicates!.push({
+        ...pr,
+        sentence_index: pr.sentence_index + sentenceOffset,
+      })
     }
     for (const t of (p.triples ?? []) as { sentence_index: number }[]) {
-      merged.triples!.push({ ...t, sentence_index: t.sentence_index + sentenceOffset })
+      merged.triples!.push({
+        ...t,
+        sentence_index: t.sentence_index + sentenceOffset,
+      })
     }
     for (const e of p.entities ?? []) merged.entities!.push(e)
     for (const s of (p.sentences ?? []) as { index: number }[]) {
       merged.sentences!.push({ ...s, index: s.index + sentenceOffset })
     }
     for (const c of (p.cnl_results ?? []) as { sentence_index: number }[]) {
-      merged.cnl_results!.push({ ...c, sentence_index: c.sentence_index + sentenceOffset })
+      merged.cnl_results!.push({
+        ...c,
+        sentence_index: c.sentence_index + sentenceOffset,
+      })
     }
-    sentenceOffset += p.meta?.sentence_count ?? (p.sentences as unknown[] ?? []).length
+    sentenceOffset +=
+      p.meta?.sentence_count ?? ((p.sentences as unknown[]) ?? []).length
     // Sum counts
     for (const [k, v] of Object.entries(p.counts ?? {})) {
       merged.counts![k] = (merged.counts![k] ?? 0) + (v as number)
@@ -194,14 +210,24 @@ async function symIngest(source: string, isText: boolean) {
       return symIngestChunked(text)
     }
     const { result, stderr } = await symIngestRaw(source, false)
-    return { tool: 'qhp-sym', mode: 'symbolic', output: result ?? { raw: '' }, stderr }
+    return {
+      tool: 'qhp-sym',
+      mode: 'symbolic',
+      output: result ?? { raw: '' },
+      stderr,
+    }
   }
 
   if (source.length > CHUNK_LIMIT) {
     return symIngestChunked(source)
   }
   const { result, stderr } = await symIngestRaw(source, true)
-  return { tool: 'qhp-sym', mode: 'symbolic', output: result ?? { raw: '' }, stderr }
+  return {
+    tool: 'qhp-sym',
+    mode: 'symbolic',
+    output: result ?? { raw: '' },
+    stderr,
+  }
 }
 
 async function symIngestChunked(text: string) {
@@ -214,7 +240,12 @@ async function symIngestChunked(text: string) {
     if (stderr) stderrParts.push(stderr)
   }
   if (parts.length === 0) {
-    return { tool: 'qhp-sym', mode: 'symbolic', output: { raw: '' }, stderr: stderrParts.join('\n') }
+    return {
+      tool: 'qhp-sym',
+      mode: 'symbolic',
+      output: { raw: '' },
+      stderr: stderrParts.join('\n'),
+    }
   }
   const merged = mergeSymResults(parts)
   return {

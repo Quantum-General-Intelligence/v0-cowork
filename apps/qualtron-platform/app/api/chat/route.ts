@@ -1,17 +1,17 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { streamText } from 'ai'
+import { CAG_PROMPT_TEMPLATES } from '@/lib/cag-prompts'
 
 /**
- * Chat API route — routes to SGLang (Qualtron GPU), or OpenRouter.
+ * Chat API route — routes to SGLang (Qualtron GPU) or OpenRouter.
  *
- * Model naming:
- *   "qualtron:MODEL_ID"              → SGLang direct (port 18000)
- *   "openrouter:anthropic/claude..." → OpenRouter
+ * For Qualtron models, injects the CAG system prompt + selected behavior
+ * so the model knows how to use its QHM context.
  */
 
 /**
  * AI SDK v5 useChat sends messages with `parts` array (UIMessage format).
- * SGLang and streamText both need simple `{ role, content }` (ModelMessage).
+ * SGLang needs simple `{ role, content }`.
  */
 function normalizeMessages(
   msgs: unknown[],
@@ -21,7 +21,6 @@ function normalizeMessages(
       const role = m.role ?? 'user'
       if (role !== 'system' && role !== 'user' && role !== 'assistant')
         return null
-      // AI SDK v5 UIMessage: { role, parts: [{ type: "text", text: "..." }] }
       if (Array.isArray(m.parts)) {
         const text = m.parts
           .filter((p: any) => p.type === 'text')
@@ -29,7 +28,6 @@ function normalizeMessages(
           .join('')
         if (text) return { role, content: text }
       }
-      // Standard: { role, content: "..." }
       if (typeof m.content === 'string' && m.content) {
         return { role, content: m.content }
       }
@@ -41,35 +39,41 @@ function normalizeMessages(
   }[]
 }
 
-function getOpenRouterProvider(modelId: string) {
-  return {
-    provider: createOpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: process.env.OPENROUTER_API_KEY ?? '',
-      headers: {
-        'HTTP-Referer':
-          process.env.NEXT_PUBLIC_APP_URL ?? 'https://qualtron.ai',
-        'X-Title': 'Qualtron Platform',
-      },
-    }),
-    modelId,
-  }
+/** Get CAG system prompt for a behavior template */
+function getSystemPrompt(behaviorId?: string): string | null {
+  if (!behaviorId) behaviorId = 'general'
+  const template = CAG_PROMPT_TEMPLATES.find((t) => t.id === behaviorId)
+  return template?.prompt ?? null
 }
 
 export async function POST(req: Request) {
   const body = await req.json()
-  const { messages: rawMessages, model = 'qualtron:default' } = body
+  const {
+    messages: rawMessages,
+    model = 'qualtron:default',
+    behavior,
+  } = body
 
-  // Normalize all messages to simple {role, content} format
   const messages = normalizeMessages(rawMessages ?? [])
-
   if (messages.length === 0) {
     return new Response('No messages provided', { status: 400 })
   }
 
-  // ─── Qualtron models → SGLang direct ──────────────────────────────────────
+  // ─── Qualtron models → SGLang direct with CAG system prompt ───────────────
   if (model.startsWith('qualtron:')) {
     const sglangUrl = process.env.SGLANG_URL ?? 'http://127.0.0.1:18000'
+
+    // Inject CAG system prompt if not already present
+    const systemPrompt = getSystemPrompt(behavior)
+    const hasSystem = messages.some((m) => m.role === 'system')
+    const finalMessages = hasSystem
+      ? messages
+      : systemPrompt
+        ? [
+            { role: 'system' as const, content: systemPrompt },
+            ...messages,
+          ]
+        : messages
 
     // Get the actual model name from SGLang
     let sglangModel = model.replace('qualtron:', '')
@@ -81,7 +85,6 @@ export async function POST(req: Request) {
       }
     } catch {}
 
-    // Direct fetch with SSE streaming
     let response: Response
     try {
       response = await fetch(`${sglangUrl}/v1/chat/completions`, {
@@ -89,7 +92,7 @@ export async function POST(req: Request) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: sglangModel,
-          messages,
+          messages: finalMessages,
           stream: true,
           max_tokens: 2048,
           temperature: 0.7,
@@ -110,7 +113,7 @@ export async function POST(req: Request) {
       return new Response('SGLang returned empty body', { status: 502 })
     }
 
-    // Transform SSE to plain text stream for TextStreamChatTransport
+    // Transform SSE to plain text stream
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     const stream = new ReadableStream({
@@ -148,12 +151,20 @@ export async function POST(req: Request) {
     ? model.replace('openrouter:', '')
     : model
 
-  const { provider, modelId: resolvedId } = getOpenRouterProvider(modelId)
+  const provider = createOpenAI({
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey: process.env.OPENROUTER_API_KEY ?? '',
+    headers: {
+      'HTTP-Referer':
+        process.env.NEXT_PUBLIC_APP_URL ?? 'https://qualtron.ai',
+      'X-Title': 'Qualtron Platform',
+    },
+  })
 
   try {
     const result = streamText({
-      model: provider(resolvedId),
-      messages, // normalized {role, content} — compatible with ModelMessage
+      model: provider(modelId),
+      messages,
     })
     return result.toTextStreamResponse()
   } catch (err) {

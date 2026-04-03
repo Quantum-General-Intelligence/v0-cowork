@@ -136,7 +136,10 @@ export function QHMGraph({
     node
       .append('circle')
       .attr('r', 16)
-      .attr('fill', (d: any) => TYPE_COLORS[d.type ?? ''] ?? TYPE_COLORS.default)
+      .attr(
+        'fill',
+        (d: any) => TYPE_COLORS[d.type ?? ''] ?? TYPE_COLORS.default,
+      )
       .attr('stroke', 'var(--background)')
       .attr('stroke-width', 2)
       .attr('cursor', 'grab')

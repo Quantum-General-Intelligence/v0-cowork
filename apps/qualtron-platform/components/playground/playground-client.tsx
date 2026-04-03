@@ -33,15 +33,22 @@ export function PlaygroundClient() {
   const [activePanel, setActivePanel] = useState<'left' | 'right'>('left')
   const [showSidebar, setShowSidebar] = useState(true)
 
+  // CAG behavior from Spine Cortex config
+  const [cagBehavior, setCagBehavior] = useState('general')
+  useEffect(() => {
+    const saved = localStorage.getItem('cag-behavior')
+    if (saved) setCagBehavior(saved)
+  }, [])
+
   // Chat transport — route Pi models to Pi agent endpoint
   const isPiModel = selectedModel.startsWith('pi:')
   const transport = useMemo(
     () =>
       new TextStreamChatTransport({
         api: isPiModel ? '/api/chat/pi' : '/api/chat',
-        body: { model: selectedModel },
+        body: { model: selectedModel, behavior: cagBehavior },
       }),
-    [selectedModel, isPiModel],
+    [selectedModel, isPiModel, cagBehavior],
   )
 
   const { messages, sendMessage, status, error, setMessages } = useChat({
@@ -200,8 +207,8 @@ export function PlaygroundClient() {
             <div className="mb-4 text-4xl">⚡</div>
             <h2 className="text-lg font-semibold">Qualtron Playground</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Chat with Qualtron models (CAG), any model via OpenRouter, or Pi
-              agents with tools.
+              Chat with Qualtron cognitive models (CAG) or Pi agents with
+              tools.
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {[

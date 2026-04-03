@@ -13,7 +13,11 @@ export async function GET(request: Request) {
     const filtered = (data.data ?? []).filter((m: DeployedModel) =>
       activeStatuses.has(m.status),
     )
-    return NextResponse.json({ ...data, data: filtered, total: filtered.length })
+    return NextResponse.json({
+      ...data,
+      data: filtered,
+      total: filtered.length,
+    })
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to list models', detail: String(error) },
