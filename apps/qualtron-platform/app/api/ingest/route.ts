@@ -102,10 +102,7 @@ async function symIngest(source: string, isText: boolean) {
 
 // ─── LLM-based ingestion via QHP-CORE ingest (fallback) ─────────────────────
 
-async function ingestLLM(
-  source: string,
-  isText: boolean,
-) {
+async function ingestLLM(source: string, isText: boolean) {
   const hFlag = '' // No heuristic — full LLM extraction with GPT-5.2
   const sourceArg = isText
     ? `--text "${source.replace(/"/g, '\\"')}"`
@@ -191,11 +188,32 @@ export async function POST(req: Request) {
         )
 
         if (tool === 'sym') {
-          // Explicit symbolic mode — only for text files
           const result = await symIngest(tmpPath, false)
           return NextResponse.json(result)
         }
-        // Default: LLM mode with GPT-5.2, no heuristic
+        // For PDFs: extract text first, then sym-ingest (fast, deterministic)
+        if (isBinary) {
+          try {
+            const { stdout: pdfText } = await execAsync(
+              `python3 -c "import pdfplumber; pdf=pdfplumber.open('${tmpPath}'); print('\\n'.join(p.extract_text() or '' for p in pdf.pages))"`,
+              { maxBuffer: 50 * 1024 * 1024, timeout: 30000 },
+            )
+            if (pdfText.trim().length > 0) {
+              // Chunk to avoid CoreNLP crash on large text
+              const chunkSize = 5000
+              const text = pdfText.trim().slice(0, chunkSize)
+              const result = await symIngest(text, true)
+              return NextResponse.json({
+                ...result,
+                totalChars: pdfText.trim().length,
+                processedChars: text.length,
+              })
+            }
+          } catch {
+            // PDF extraction failed — fall through to LLM
+          }
+        }
+        // Default: LLM mode with GPT-5.2
         const result = await ingestLLM(tmpPath, false)
         return NextResponse.json(result)
       } finally {
