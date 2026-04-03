@@ -310,7 +310,9 @@ export default function SpineCortexPage() {
                   ))}
                 </select>
                 {stage.qhmStatus === 'ingesting' && (
-                  <p className="mt-1 text-[10px] text-warning">Model locked during QHM processing</p>
+                  <p className="mt-1 text-[10px] text-warning">
+                    Model locked during QHM processing
+                  </p>
                 )}
               </div>
 
@@ -325,12 +327,18 @@ export default function SpineCortexPage() {
                       {(stage.qhmTokenCount / 1000).toFixed(0)}K tokens
                     </span>
                   )}
-                  {(stage.qhmStatus === 'ready' || stage.qhmStatus === 'error') && (
+                  {(stage.qhmStatus === 'ready' ||
+                    stage.qhmStatus === 'error') && (
                     <button
-                      onClick={() => updateStage(stage.id, {
-                        qhmStatus: 'empty', qhmTokenCount: 0, qhmFileCount: 0,
-                        qhmError: null, qhmResult: null,
-                      })}
+                      onClick={() =>
+                        updateStage(stage.id, {
+                          qhmStatus: 'empty',
+                          qhmTokenCount: 0,
+                          qhmFileCount: 0,
+                          qhmError: null,
+                          qhmResult: null,
+                        })
+                      }
                       className="text-[10px] text-muted-foreground hover:text-foreground"
                       title="Clear QHM data"
                     >
@@ -343,9 +351,16 @@ export default function SpineCortexPage() {
               {/* Error with retry */}
               {stage.qhmError && (
                 <div className="mb-2 flex items-center justify-between rounded bg-destructive/10 px-2 py-1">
-                  <p className="text-[10px] text-destructive">{stage.qhmError}</p>
+                  <p className="text-[10px] text-destructive">
+                    {stage.qhmError}
+                  </p>
                   <button
-                    onClick={() => updateStage(stage.id, { qhmStatus: 'empty', qhmError: null })}
+                    onClick={() =>
+                      updateStage(stage.id, {
+                        qhmStatus: 'empty',
+                        qhmError: null,
+                      })
+                    }
                     className="text-[10px] text-destructive hover:underline"
                   >
                     Retry
@@ -669,7 +684,9 @@ function QHPResultsViewer({ result }: { result: unknown }) {
         <span>
           {`QHP Results: ${rulesList.length} rules`}
           {classification ? ` · ${String(classification)}` : ''}
-          {typeof timing === 'number' ? ` · ${(timing / 1000).toFixed(1)}s` : ''}
+          {typeof timing === 'number'
+            ? ` · ${(timing / 1000).toFixed(1)}s`
+            : ''}
         </span>
         <span>{expanded ? '▾' : '▸'}</span>
       </button>
@@ -678,10 +695,15 @@ function QHPResultsViewer({ result }: { result: unknown }) {
           {/* QLang role distribution */}
           {qlangRoles && Object.keys(qlangRoles).length > 0 && (
             <div>
-              <div className="text-[10px] font-medium text-muted-foreground mb-1">Rule Types</div>
+              <div className="text-[10px] font-medium text-muted-foreground mb-1">
+                Rule Types
+              </div>
               <div className="flex flex-wrap gap-1">
                 {Object.entries(qlangRoles).map(([role, count]) => (
-                  <span key={role} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono text-primary">
+                  <span
+                    key={role}
+                    className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono text-primary"
+                  >
                     {role}: {count}
                   </span>
                 ))}
@@ -691,16 +713,23 @@ function QHPResultsViewer({ result }: { result: unknown }) {
           {/* Extracted rules */}
           {rulesList.length > 0 && (
             <div>
-              <div className="text-[10px] font-medium text-muted-foreground mb-1">Extracted Rules</div>
+              <div className="text-[10px] font-medium text-muted-foreground mb-1">
+                Extracted Rules
+              </div>
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {rulesList.map((rule, i) => (
                   <div key={i} className="flex gap-1.5 text-[10px]">
-                    <span className={`shrink-0 rounded px-1 py-0.5 font-mono ${
-                      rule.type === 'Obligation' ? 'bg-warning/20 text-warning' :
-                      rule.type === 'Prohibition' ? 'bg-destructive/20 text-destructive' :
-                      rule.type === 'Permission' ? 'bg-success/20 text-success' :
-                      'bg-muted text-muted-foreground'
-                    }`}>
+                    <span
+                      className={`shrink-0 rounded px-1 py-0.5 font-mono ${
+                        rule.type === 'Obligation'
+                          ? 'bg-warning/20 text-warning'
+                          : rule.type === 'Prohibition'
+                            ? 'bg-destructive/20 text-destructive'
+                            : rule.type === 'Permission'
+                              ? 'bg-success/20 text-success'
+                              : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
                       {rule.type}
                     </span>
                     <span className="text-foreground">{rule.text}</span>

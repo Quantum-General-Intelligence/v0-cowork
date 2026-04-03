@@ -106,7 +106,9 @@ export default function DeployPage() {
     async (modelId: string) => {
       setError(null)
       try {
-        const res = await fetch(`/api/qinference/models/${modelId}`, { method: 'DELETE' })
+        const res = await fetch(`/api/qinference/models/${modelId}`, {
+          method: 'DELETE',
+        })
         if (!res.ok) throw new Error('Undeploy failed')
         await fetchData()
       } catch (err) {
@@ -138,7 +140,12 @@ export default function DeployPage() {
       {error && (
         <div className="flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 p-3">
           <span className="text-sm text-destructive">{error}</span>
-          <button onClick={() => setError(null)} className="text-xs text-destructive hover:underline">Dismiss</button>
+          <button
+            onClick={() => setError(null)}
+            className="text-xs text-destructive hover:underline"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 

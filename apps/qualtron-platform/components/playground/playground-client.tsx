@@ -250,7 +250,7 @@ export function PlaygroundClient() {
 
   // Full layout with sidebar
   return (
-    <div className="flex h-[calc(100vh-112px)]">
+    <div className="flex h-[calc(100vh-96px)]">
       {/* Sidebar — hidden on mobile unless toggled */}
       <div
         className={`${showSidebar ? 'block' : 'hidden'} w-64 shrink-0 lg:block`}
