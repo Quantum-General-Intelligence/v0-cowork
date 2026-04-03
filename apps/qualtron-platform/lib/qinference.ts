@@ -222,7 +222,7 @@ export async function getModelHealth(modelId: string): Promise<{
   model_id: string
   variant_id: string
   db_status: string
-  sglang_status: string | null   // "ready" | "unreachable" | null
+  sglang_status: string | null // "ready" | "unreachable" | null
   /** @deprecated renamed to sglang_status */
   gpustack_status?: string | null
   healthy: boolean

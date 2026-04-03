@@ -190,7 +190,11 @@ export default function RegisterAgentPage() {
                 step === s ? 'font-medium' : 'text-muted-foreground text-xs'
               }
             >
-              {s === 'config' ? 'Configure' : s === 'ingest' ? 'Load KB' : 'Done'}
+              {s === 'config'
+                ? 'Configure'
+                : s === 'ingest'
+                  ? 'Load KB'
+                  : 'Done'}
             </span>
             {i < 2 && <span className="text-muted-foreground">→</span>}
           </div>
@@ -215,7 +219,9 @@ export default function RegisterAgentPage() {
                 type="text"
                 value={name}
                 onChange={(e) =>
-                  setName(e.target.value.toLowerCase().replace(/[^a-z0-9-_\s]/g, ''))
+                  setName(
+                    e.target.value.toLowerCase().replace(/[^a-z0-9-_\s]/g, ''),
+                  )
                 }
                 placeholder="e.g. hr-policy-bot"
                 required
@@ -226,7 +232,9 @@ export default function RegisterAgentPage() {
             <div className="col-span-2">
               <label className="mb-1.5 block text-sm font-medium">
                 Description{' '}
-                <span className="text-muted-foreground font-normal">(optional)</span>
+                <span className="text-muted-foreground font-normal">
+                  (optional)
+                </span>
               </label>
               <input
                 type="text"
@@ -255,7 +263,9 @@ export default function RegisterAgentPage() {
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Quality</label>
+              <label className="mb-1.5 block text-sm font-medium">
+                Quality
+              </label>
               <select
                 value={quality}
                 onChange={(e) =>
@@ -302,7 +312,9 @@ export default function RegisterAgentPage() {
           <div>
             <label className="mb-1.5 block text-sm font-medium">
               Qualtron Model{' '}
-              <span className="text-muted-foreground font-normal">(for chat)</span>
+              <span className="text-muted-foreground font-normal">
+                (for chat)
+              </span>
             </label>
             {loadingModels ? (
               <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
