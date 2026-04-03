@@ -29,6 +29,12 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: 'Data',
+    items: [
+      { label: 'QHM', href: '/qhm', icon: '🔬' },
+    ],
+  },
+  {
     title: 'Workspace',
     items: [
       { label: 'Playground', href: '/playground', icon: '💬' },
