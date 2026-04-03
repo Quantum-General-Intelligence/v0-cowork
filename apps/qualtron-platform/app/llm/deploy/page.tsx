@@ -102,6 +102,20 @@ export default function DeployPage() {
     [fetchData],
   )
 
+  const handleUndeploy = useCallback(
+    async (modelId: string) => {
+      setError(null)
+      try {
+        const res = await fetch(`/api/qinference/models/${modelId}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('Undeploy failed')
+        await fetchData()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Undeploy failed')
+      }
+    },
+    [fetchData],
+  )
+
   const families = ['all', ...new Set(catalog.map((v) => v.base_family))]
   const filtered =
     familyFilter === 'all'
@@ -122,8 +136,9 @@ export default function DeployPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
+        <div className="flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+          <span className="text-sm text-destructive">{error}</span>
+          <button onClick={() => setError(null)} className="text-xs text-destructive hover:underline">Dismiss</button>
         </div>
       )}
 
@@ -169,14 +184,22 @@ export default function DeployPage() {
                     </span>
                   </div>
                 </div>
-                {m.status === 'ready' && (
-                  <Link
-                    href="/playground"
-                    className="mt-3 inline-block rounded-md bg-primary/10 px-3 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/20"
+                <div className="mt-3 flex gap-2">
+                  {m.status === 'ready' && (
+                    <Link
+                      href="/playground"
+                      className="rounded-md bg-primary/10 px-3 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/20"
+                    >
+                      Chat →
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => handleUndeploy(m.id)}
+                    className="rounded-md bg-destructive/10 px-3 py-1.5 text-[10px] font-medium text-destructive hover:bg-destructive/20"
                   >
-                    Chat →
-                  </Link>
-                )}
+                    Undeploy
+                  </button>
+                </div>
               </div>
             ))}
           </div>

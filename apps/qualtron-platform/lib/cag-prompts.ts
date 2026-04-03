@@ -38,15 +38,43 @@ export const CAG_PROMPT_TEMPLATES: CAGPromptTemplate[] = [
     id: 'legal',
     name: 'Legal & Compliance',
     icon: '⚖️',
-    description: 'Contracts, regulations, compliance — obligations, prohibitions, permissions with citations.',
+    description:
+      'Contracts, regulations, compliance — obligations, prohibitions, permissions with citations.',
     skills: [
-      { name: 'review-contract', command: '/review-contract', description: 'Review contracts against playbook, flag deviations, generate redlines' },
-      { name: 'triage-nda', command: '/triage-nda', description: 'Triage NDAs against standard carveouts' },
-      { name: 'compliance-check', command: '/compliance-check', description: 'Check compliance against regulatory requirements' },
-      { name: 'legal-risk-assessment', description: 'Assess legal risks and recommend mitigations' },
-      { name: 'legal-brief', command: '/brief', description: 'Draft legal briefs and meeting preparation docs' },
-      { name: 'vendor-check', command: '/vendor-check', description: 'Evaluate vendor agreements and risk profiles' },
-      { name: 'signature-request', description: 'Manage signature workflows and approvals' },
+      {
+        name: 'review-contract',
+        command: '/review-contract',
+        description:
+          'Review contracts against playbook, flag deviations, generate redlines',
+      },
+      {
+        name: 'triage-nda',
+        command: '/triage-nda',
+        description: 'Triage NDAs against standard carveouts',
+      },
+      {
+        name: 'compliance-check',
+        command: '/compliance-check',
+        description: 'Check compliance against regulatory requirements',
+      },
+      {
+        name: 'legal-risk-assessment',
+        description: 'Assess legal risks and recommend mitigations',
+      },
+      {
+        name: 'legal-brief',
+        command: '/brief',
+        description: 'Draft legal briefs and meeting preparation docs',
+      },
+      {
+        name: 'vendor-check',
+        command: '/vendor-check',
+        description: 'Evaluate vendor agreements and risk profiles',
+      },
+      {
+        name: 'signature-request',
+        description: 'Manage signature workflows and approvals',
+      },
     ],
     prompt: `${CAG_BASE}
 
@@ -82,16 +110,48 @@ DISCLAIMER: All outputs require review by a qualified legal professional before 
     id: 'code',
     name: 'Code & Engineering',
     icon: '💻',
-    description: 'Codebases, architecture, debugging — code review, standup, incident response.',
+    description:
+      'Codebases, architecture, debugging — code review, standup, incident response.',
     skills: [
-      { name: 'code-review', command: '/review', description: 'Review code for security, performance, style, correctness' },
-      { name: 'standup', command: '/standup', description: 'Generate standup from commits, PRs, and tickets' },
-      { name: 'debug', command: '/debug', description: 'Structured debugging methodology' },
-      { name: 'architecture', command: '/architecture', description: 'Architecture decision records with trade-off analysis' },
-      { name: 'incident-response', command: '/incident', description: 'Incident triage, communication, and postmortem' },
-      { name: 'deploy-checklist', command: '/deploy-checklist', description: 'Pre-deployment verification checklist' },
-      { name: 'testing-strategy', description: 'Design test strategies and coverage plans' },
-      { name: 'tech-debt', description: 'Identify, categorize, and prioritize technical debt' },
+      {
+        name: 'code-review',
+        command: '/review',
+        description:
+          'Review code for security, performance, style, correctness',
+      },
+      {
+        name: 'standup',
+        command: '/standup',
+        description: 'Generate standup from commits, PRs, and tickets',
+      },
+      {
+        name: 'debug',
+        command: '/debug',
+        description: 'Structured debugging methodology',
+      },
+      {
+        name: 'architecture',
+        command: '/architecture',
+        description: 'Architecture decision records with trade-off analysis',
+      },
+      {
+        name: 'incident-response',
+        command: '/incident',
+        description: 'Incident triage, communication, and postmortem',
+      },
+      {
+        name: 'deploy-checklist',
+        command: '/deploy-checklist',
+        description: 'Pre-deployment verification checklist',
+      },
+      {
+        name: 'testing-strategy',
+        description: 'Design test strategies and coverage plans',
+      },
+      {
+        name: 'tech-debt',
+        description: 'Identify, categorize, and prioritize technical debt',
+      },
     ],
     prompt: `${CAG_BASE}
 
@@ -120,15 +180,43 @@ Format: Use code blocks with language tags. Reference paths as \`file:path\`.`,
     id: 'financial',
     name: 'Finance & Accounting',
     icon: '📊',
-    description: 'Financial statements, reconciliation, variance analysis, SOX compliance.',
+    description:
+      'Financial statements, reconciliation, variance analysis, SOX compliance.',
     skills: [
-      { name: 'journal-entry', command: '/journal-entry', description: 'Prepare journal entries (accruals, fixed assets, revenue, payroll)' },
-      { name: 'reconciliation', command: '/reconciliation', description: 'Reconcile GL, bank, subledger, intercompany accounts' },
-      { name: 'financial-statements', command: '/income-statement', description: 'Generate P&L, balance sheet, cash flow statements' },
-      { name: 'variance-analysis', command: '/variance-analysis', description: 'Analyze variances with waterfall decomposition' },
-      { name: 'close-management', description: 'Manage month-end close process and checklist' },
-      { name: 'sox-testing', command: '/sox-testing', description: 'SOX control testing and audit support' },
-      { name: 'audit-support', description: 'Prepare audit documentation and evidence packages' },
+      {
+        name: 'journal-entry',
+        command: '/journal-entry',
+        description:
+          'Prepare journal entries (accruals, fixed assets, revenue, payroll)',
+      },
+      {
+        name: 'reconciliation',
+        command: '/reconciliation',
+        description: 'Reconcile GL, bank, subledger, intercompany accounts',
+      },
+      {
+        name: 'financial-statements',
+        command: '/income-statement',
+        description: 'Generate P&L, balance sheet, cash flow statements',
+      },
+      {
+        name: 'variance-analysis',
+        command: '/variance-analysis',
+        description: 'Analyze variances with waterfall decomposition',
+      },
+      {
+        name: 'close-management',
+        description: 'Manage month-end close process and checklist',
+      },
+      {
+        name: 'sox-testing',
+        command: '/sox-testing',
+        description: 'SOX control testing and audit support',
+      },
+      {
+        name: 'audit-support',
+        description: 'Prepare audit documentation and evidence packages',
+      },
     ],
     prompt: `${CAG_BASE}
 
@@ -157,14 +245,33 @@ DISCLAIMER: All outputs require review by a qualified financial professional bef
     id: 'medical',
     name: 'Healthcare & Research',
     icon: '🏥',
-    description: 'Clinical guidelines, research protocols, drug data — evidence-based with safety awareness.',
+    description:
+      'Clinical guidelines, research protocols, drug data — evidence-based with safety awareness.',
     skills: [
-      { name: 'literature-search', description: 'Search PubMed, bioRxiv, journals for relevant research' },
-      { name: 'research-synthesis', description: 'Synthesize findings across multiple studies' },
-      { name: 'clinical-assessment', description: 'Assess clinical evidence quality and applicability' },
-      { name: 'drug-interaction', description: 'Check drug interactions and contraindications' },
-      { name: 'protocol-review', description: 'Review clinical protocols and study designs' },
-      { name: 'scientific-problem-selection', description: 'Evaluate research questions with impact assessment' },
+      {
+        name: 'literature-search',
+        description: 'Search PubMed, bioRxiv, journals for relevant research',
+      },
+      {
+        name: 'research-synthesis',
+        description: 'Synthesize findings across multiple studies',
+      },
+      {
+        name: 'clinical-assessment',
+        description: 'Assess clinical evidence quality and applicability',
+      },
+      {
+        name: 'drug-interaction',
+        description: 'Check drug interactions and contraindications',
+      },
+      {
+        name: 'protocol-review',
+        description: 'Review clinical protocols and study designs',
+      },
+      {
+        name: 'scientific-problem-selection',
+        description: 'Evaluate research questions with impact assessment',
+      },
     ],
     prompt: `${CAG_BASE}
 
@@ -192,13 +299,29 @@ Format: Structure with Evidence Level (high/moderate/low), Source, Recommendatio
     id: 'support',
     name: 'Customer Support',
     icon: '💬',
-    description: 'Ticket triage, response drafting, KB articles, escalation — multi-channel support.',
+    description:
+      'Ticket triage, response drafting, KB articles, escalation — multi-channel support.',
     skills: [
-      { name: 'ticket-triage', description: 'Triage tickets with priority assessment and routing' },
-      { name: 'draft-response', description: 'Draft responses for email, chat, social channels' },
-      { name: 'customer-research', description: 'Research customer context across multiple sources' },
-      { name: 'customer-escalation', description: 'Package escalations with full context' },
-      { name: 'kb-article', description: 'Create knowledge base articles from resolved issues' },
+      {
+        name: 'ticket-triage',
+        description: 'Triage tickets with priority assessment and routing',
+      },
+      {
+        name: 'draft-response',
+        description: 'Draft responses for email, chat, social channels',
+      },
+      {
+        name: 'customer-research',
+        description: 'Research customer context across multiple sources',
+      },
+      {
+        name: 'customer-escalation',
+        description: 'Package escalations with full context',
+      },
+      {
+        name: 'kb-article',
+        description: 'Create knowledge base articles from resolved issues',
+      },
     ],
     prompt: `${CAG_BASE}
 
@@ -221,14 +344,39 @@ Tone: Professional, helpful, empathetic. Match the customer's urgency level.`,
     id: 'research',
     name: 'Research & Data',
     icon: '🔬',
-    description: 'Papers, datasets, SQL queries, visualizations — synthesis with methodology rigor.',
+    description:
+      'Papers, datasets, SQL queries, visualizations — synthesis with methodology rigor.',
     skills: [
-      { name: 'write-query', command: '/write-query', description: 'Generate SQL queries optimized for your dialect' },
-      { name: 'explore-data', command: '/explore-data', description: 'Profile datasets and discover patterns' },
-      { name: 'analyze', command: '/analyze', description: 'Statistical analysis and hypothesis testing' },
-      { name: 'create-viz', command: '/create-viz', description: 'Create publication-quality visualizations' },
-      { name: 'build-dashboard', command: '/build-dashboard', description: 'Build interactive HTML dashboards' },
-      { name: 'validate-data', command: '/validate', description: 'QA analysis with validation checks' },
+      {
+        name: 'write-query',
+        command: '/write-query',
+        description: 'Generate SQL queries optimized for your dialect',
+      },
+      {
+        name: 'explore-data',
+        command: '/explore-data',
+        description: 'Profile datasets and discover patterns',
+      },
+      {
+        name: 'analyze',
+        command: '/analyze',
+        description: 'Statistical analysis and hypothesis testing',
+      },
+      {
+        name: 'create-viz',
+        command: '/create-viz',
+        description: 'Create publication-quality visualizations',
+      },
+      {
+        name: 'build-dashboard',
+        command: '/build-dashboard',
+        description: 'Build interactive HTML dashboards',
+      },
+      {
+        name: 'validate-data',
+        command: '/validate',
+        description: 'QA analysis with validation checks',
+      },
     ],
     prompt: `${CAG_BASE}
 
@@ -257,12 +405,27 @@ Format: Use code blocks for SQL/Python. Tables for data comparisons.`,
     id: 'general',
     name: 'General Assistant',
     icon: '🧠',
-    description: 'Any domain — adapts to whatever documents are loaded. Includes productivity skills.',
+    description:
+      'Any domain — adapts to whatever documents are loaded. Includes productivity skills.',
     skills: [
-      { name: 'task-management', description: 'Manage tasks, priorities, and deadlines' },
-      { name: 'memory-management', description: 'Build and maintain workplace context memory' },
-      { name: 'search', command: '/search', description: 'Search across all loaded QHM content' },
-      { name: 'digest', command: '/digest', description: 'Generate daily/weekly activity digests' },
+      {
+        name: 'task-management',
+        description: 'Manage tasks, priorities, and deadlines',
+      },
+      {
+        name: 'memory-management',
+        description: 'Build and maintain workplace context memory',
+      },
+      {
+        name: 'search',
+        command: '/search',
+        description: 'Search across all loaded QHM content',
+      },
+      {
+        name: 'digest',
+        command: '/digest',
+        description: 'Generate daily/weekly activity digests',
+      },
     ],
     prompt: `${CAG_BASE}
 
@@ -279,15 +442,38 @@ Adapt your communication style to match the content domain. Be concise for simpl
     id: 'sales',
     name: 'Sales & GTM',
     icon: '🎯',
-    description: 'Prospecting, call prep, pipeline review, outreach drafting, competitive intel.',
+    description:
+      'Prospecting, call prep, pipeline review, outreach drafting, competitive intel.',
     skills: [
-      { name: 'account-research', description: 'Deep research on target accounts' },
-      { name: 'call-prep', description: 'Prepare for calls with context synthesis and talking points' },
-      { name: 'call-summary', description: 'Summarize call notes into structured action items' },
-      { name: 'draft-outreach', description: 'Draft personalized email/LinkedIn/phone outreach' },
-      { name: 'pipeline-review', description: 'Review pipeline health and identify at-risk deals' },
-      { name: 'competitive-intelligence', description: 'Analyze competitive landscape and positioning' },
-      { name: 'forecast', description: 'Revenue forecasting with deal-level analysis' },
+      {
+        name: 'account-research',
+        description: 'Deep research on target accounts',
+      },
+      {
+        name: 'call-prep',
+        description:
+          'Prepare for calls with context synthesis and talking points',
+      },
+      {
+        name: 'call-summary',
+        description: 'Summarize call notes into structured action items',
+      },
+      {
+        name: 'draft-outreach',
+        description: 'Draft personalized email/LinkedIn/phone outreach',
+      },
+      {
+        name: 'pipeline-review',
+        description: 'Review pipeline health and identify at-risk deals',
+      },
+      {
+        name: 'competitive-intelligence',
+        description: 'Analyze competitive landscape and positioning',
+      },
+      {
+        name: 'forecast',
+        description: 'Revenue forecasting with deal-level analysis',
+      },
     ],
     prompt: `${CAG_BASE}
 
@@ -311,15 +497,37 @@ Tone: Consultative, value-focused, never pushy.`,
     id: 'product',
     name: 'Product Management',
     icon: '📦',
-    description: 'Feature specs, roadmap planning, user research synthesis, competitive analysis.',
+    description:
+      'Feature specs, roadmap planning, user research synthesis, competitive analysis.',
     skills: [
-      { name: 'write-spec', description: 'Write PRDs and feature specifications' },
-      { name: 'roadmap-update', description: 'Plan and update product roadmaps with dependencies' },
-      { name: 'stakeholder-update', description: 'Generate weekly/monthly/launch stakeholder updates' },
-      { name: 'synthesize-research', description: 'Synthesize user interviews, surveys, and support data' },
-      { name: 'competitive-brief', description: 'Competitive analysis with positioning recommendations' },
-      { name: 'metrics-review', description: 'Analyze product metrics and identify trends' },
-      { name: 'sprint-planning', description: 'Plan sprints with capacity and priority balancing' },
+      {
+        name: 'write-spec',
+        description: 'Write PRDs and feature specifications',
+      },
+      {
+        name: 'roadmap-update',
+        description: 'Plan and update product roadmaps with dependencies',
+      },
+      {
+        name: 'stakeholder-update',
+        description: 'Generate weekly/monthly/launch stakeholder updates',
+      },
+      {
+        name: 'synthesize-research',
+        description: 'Synthesize user interviews, surveys, and support data',
+      },
+      {
+        name: 'competitive-brief',
+        description: 'Competitive analysis with positioning recommendations',
+      },
+      {
+        name: 'metrics-review',
+        description: 'Analyze product metrics and identify trends',
+      },
+      {
+        name: 'sprint-planning',
+        description: 'Plan sprints with capacity and priority balancing',
+      },
     ],
     prompt: `${CAG_BASE}
 
@@ -343,14 +551,35 @@ Format: Use structured templates with clear sections and decision points.`,
     id: 'marketing',
     name: 'Marketing & Content',
     icon: '📣',
-    description: 'Content creation, campaign planning, SEO, email sequences, brand voice.',
+    description:
+      'Content creation, campaign planning, SEO, email sequences, brand voice.',
     skills: [
-      { name: 'draft-content', description: 'Create blog posts, social media, email, landing pages, press releases' },
-      { name: 'campaign-plan', description: 'Plan multi-channel campaigns with content calendars' },
-      { name: 'brand-review', description: 'Review content against brand voice guidelines' },
-      { name: 'seo-audit', command: '/seo-audit', description: 'SEO analysis with keyword clustering' },
-      { name: 'email-sequence', description: 'Design multi-step email nurture sequences' },
-      { name: 'performance-report', description: 'Analyze channel performance with trend analysis' },
+      {
+        name: 'draft-content',
+        description:
+          'Create blog posts, social media, email, landing pages, press releases',
+      },
+      {
+        name: 'campaign-plan',
+        description: 'Plan multi-channel campaigns with content calendars',
+      },
+      {
+        name: 'brand-review',
+        description: 'Review content against brand voice guidelines',
+      },
+      {
+        name: 'seo-audit',
+        command: '/seo-audit',
+        description: 'SEO analysis with keyword clustering',
+      },
+      {
+        name: 'email-sequence',
+        description: 'Design multi-step email nurture sequences',
+      },
+      {
+        name: 'performance-report',
+        description: 'Analyze channel performance with trend analysis',
+      },
     ],
     prompt: `${CAG_BASE}
 

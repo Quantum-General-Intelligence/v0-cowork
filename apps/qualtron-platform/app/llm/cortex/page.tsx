@@ -23,7 +23,7 @@ interface CortexStage {
   qhmTokenCount: number
   qhmFileCount: number
   qhmError: string | null
-  qhmResult: unknown | null
+  qhmResult: Record<string, unknown> | null
 }
 
 interface CatalogModel {
@@ -212,7 +212,7 @@ export default function SpineCortexPage() {
     [updateStage],
   )
 
-  const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  const STATUS_BADGE = {
     empty: { label: 'No QHM', cls: 'text-muted-foreground' },
     ingesting: { label: 'Processing...', cls: 'text-primary animate-pulse' },
     ready: { label: 'QHM Ready', cls: 'text-accent' },
@@ -266,7 +266,7 @@ export default function SpineCortexPage() {
       {/* Three Stages */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {stages.map((stage, i) => {
-          const badge = STATUS_BADGE[stage.qhmStatus]
+          const badge = STATUS_BADGE[stage.qhmStatus] ?? STATUS_BADGE.empty
           const isActive = activeStageId === stage.id
           return (
             <div
@@ -289,7 +289,7 @@ export default function SpineCortexPage() {
                 {stage.description}
               </p>
 
-              {/* Model Selection (from real catalog) */}
+              {/* Model Selection — locked during ingestion */}
               <div className="mb-3">
                 <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   Model
@@ -299,7 +299,8 @@ export default function SpineCortexPage() {
                   onChange={(e) =>
                     updateStage(stage.id, { model: e.target.value || null })
                   }
-                  className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                  disabled={stage.qhmStatus === 'ingesting'}
+                  className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">Select from catalog...</option>
                   {catalogModels.map((m) => (
@@ -308,23 +309,53 @@ export default function SpineCortexPage() {
                     </option>
                   ))}
                 </select>
+                {stage.qhmStatus === 'ingesting' && (
+                  <p className="mt-1 text-[10px] text-warning">Model locked during QHM processing</p>
+                )}
               </div>
 
-              {/* QHM Status */}
+              {/* QHM Status + Actions */}
               <div className="mb-2 flex items-center justify-between">
                 <span className={`text-xs font-medium ${badge.cls}`}>
                   {badge.label}
                 </span>
-                {stage.qhmTokenCount > 0 && (
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {(stage.qhmTokenCount / 1000).toFixed(0)}K tokens
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {stage.qhmTokenCount > 0 && (
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {(stage.qhmTokenCount / 1000).toFixed(0)}K tokens
+                    </span>
+                  )}
+                  {(stage.qhmStatus === 'ready' || stage.qhmStatus === 'error') && (
+                    <button
+                      onClick={() => updateStage(stage.id, {
+                        qhmStatus: 'empty', qhmTokenCount: 0, qhmFileCount: 0,
+                        qhmError: null, qhmResult: null,
+                      })}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                      title="Clear QHM data"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Error with retry */}
               {stage.qhmError && (
-                <p className="mb-2 text-[10px] text-destructive">
-                  {stage.qhmError}
-                </p>
+                <div className="mb-2 flex items-center justify-between rounded bg-destructive/10 px-2 py-1">
+                  <p className="text-[10px] text-destructive">{stage.qhmError}</p>
+                  <button
+                    onClick={() => updateStage(stage.id, { qhmStatus: 'empty', qhmError: null })}
+                    className="text-[10px] text-destructive hover:underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {/* QHP Results viewer — expandable */}
+              {stage.qhmStatus === 'ready' && stage.qhmResult && (
+                <QHPResultsViewer result={stage.qhmResult} />
               )}
 
               {/* Upload toggle */}
@@ -612,6 +643,72 @@ function DeploySection({
           >
             View Instances
           </Link>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QHPResultsViewer({ result }: { result: unknown }) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (!result || typeof result !== 'object') return null
+
+  const r = result as Record<string, unknown>
+  const classification = r.classification ?? r.state ?? null
+  const rulesList = (r.rules_list ?? []) as { type: string; text: string }[]
+  const qlangRoles = r.qlang_roles as Record<string, number> | undefined
+  const timing = r.timing_ms as number | undefined
+
+  return (
+    <div className="mb-2 rounded border border-border bg-background">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center justify-between px-2 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+      >
+        <span>
+          {`QHP Results: ${rulesList.length} rules`}
+          {classification ? ` · ${String(classification)}` : ''}
+          {typeof timing === 'number' ? ` · ${(timing / 1000).toFixed(1)}s` : ''}
+        </span>
+        <span>{expanded ? '▾' : '▸'}</span>
+      </button>
+      {expanded && (
+        <div className="border-t border-border px-2 py-2 space-y-2">
+          {/* QLang role distribution */}
+          {qlangRoles && Object.keys(qlangRoles).length > 0 && (
+            <div>
+              <div className="text-[10px] font-medium text-muted-foreground mb-1">Rule Types</div>
+              <div className="flex flex-wrap gap-1">
+                {Object.entries(qlangRoles).map(([role, count]) => (
+                  <span key={role} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono text-primary">
+                    {role}: {count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Extracted rules */}
+          {rulesList.length > 0 && (
+            <div>
+              <div className="text-[10px] font-medium text-muted-foreground mb-1">Extracted Rules</div>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {rulesList.map((rule, i) => (
+                  <div key={i} className="flex gap-1.5 text-[10px]">
+                    <span className={`shrink-0 rounded px-1 py-0.5 font-mono ${
+                      rule.type === 'Obligation' ? 'bg-warning/20 text-warning' :
+                      rule.type === 'Prohibition' ? 'bg-destructive/20 text-destructive' :
+                      rule.type === 'Permission' ? 'bg-success/20 text-success' :
+                      'bg-muted text-muted-foreground'
+                    }`}>
+                      {rule.type}
+                    </span>
+                    <span className="text-foreground">{rule.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
