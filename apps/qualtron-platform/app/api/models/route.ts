@@ -109,40 +109,33 @@ export async function GET() {
     },
   ]
 
-  // Fetch Q-Inference deployed models (real GPU-backed inference)
-  if (process.env.CACHEDLLM_URL) {
-    try {
-      const res = await fetch(
-        `${process.env.CACHEDLLM_URL}/v1/qinference/models?status=ready`,
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.CACHEDLLM_API_KEY ?? ''}`,
-          },
-        },
+  // Discover SGLang models running locally (direct GPU inference)
+  const sglangUrl = process.env.SGLANG_URL ?? 'http://127.0.0.1:18000'
+  try {
+    const res = await fetch(`${sglangUrl}/v1/models`)
+    if (res.ok) {
+      const data = await res.json()
+      const sglangModels: ModelOption[] = (data.data ?? []).map(
+        (m: { id: string }) => ({
+          id: `qualtron:${m.id}`,
+          name: m.id.split('/').pop() ?? m.id,
+          provider: 'qualtron' as const,
+          description: `SGLang: ${m.id} — local GPU inference`,
+          category: 'Qualtron (GPU)',
+        }),
       )
-      if (res.ok) {
-        const data = await res.json()
-        const qualtronModels: ModelOption[] = (data.data ?? []).map(
-          (m: { id: string; name: string; variant_id: string }) => ({
-            id: `qualtron:${m.id}`,
-            name: m.name || m.variant_id,
-            provider: 'qualtron' as const,
-            description: `Q-Inference: ${m.variant_id} — direct GPU inference`,
-            category: 'Qualtron (Q-Inference)',
-          }),
-        )
-        if (qualtronModels.length > 0) {
-          return NextResponse.json({
-            models: [
-              ...qualtronModels,
-              ...models.filter((m) => m.provider !== 'qualtron'),
-            ],
-          })
-        }
+      if (sglangModels.length > 0) {
+        // Replace default qualtron model with real SGLang models
+        return NextResponse.json({
+          models: [
+            ...sglangModels,
+            ...models.filter((m) => m.provider !== 'qualtron'),
+          ],
+        })
       }
-    } catch {
-      // Fall through to defaults
     }
+  } catch {
+    // SGLang not running — use defaults
   }
 
   return NextResponse.json({ models })

@@ -48,43 +48,66 @@ function getProvider(model: string) {
 export async function POST(req: Request) {
   const { messages, model = 'qualtron:default' } = await req.json()
 
-  // For Q-Inference models, use direct fetch with streaming
+  // For Qualtron models, use SGLang directly (OpenAI-compatible on port 18000)
   if (model.startsWith('qualtron:')) {
-    const modelId = model.replace('qualtron:', '')
-    const apiUrl = process.env.CACHEDLLM_URL ?? 'http://localhost:8000'
-    const apiKey = process.env.CACHEDLLM_API_KEY ?? ''
+    const sglangUrl = process.env.SGLANG_URL ?? 'http://127.0.0.1:18000'
 
-    const response = await fetch(
-      `${apiUrl}/v1/qinference/models/${modelId}/completions`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages,
-          stream: true,
-          temperature: 0.7,
-          max_tokens: 2048,
-        }),
-      },
-    )
+    // Get the model name from SGLang
+    let sglangModel = model.replace('qualtron:', '')
+    try {
+      const modelsRes = await fetch(`${sglangUrl}/v1/models`)
+      const modelsData = await modelsRes.json()
+      if (modelsData.data?.[0]?.id) {
+        sglangModel = modelsData.data[0].id
+      }
+    } catch {}
 
-    if (!response.ok) {
-      // Fall back to OpenAI-compatible endpoint
-      const { provider, modelId: mId } = getProvider(model)
-      const result = streamText({ model: provider(mId), messages })
-      return result.toTextStreamResponse()
+    // Direct fetch with SSE streaming — bypasses AI SDK compatibility issues
+    const response = await fetch(`${sglangUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: sglangModel,
+        messages,
+        stream: true,
+        max_tokens: 2048,
+        temperature: 0.7,
+      }),
+    })
+
+    if (!response.ok || !response.body) {
+      return new Response('SGLang error', { status: 502 })
     }
 
-    // Forward the SSE stream
-    return new Response(response.body, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
+    // Transform SSE to plain text stream for the frontend
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            const text = decoder.decode(value, { stream: true })
+            for (const line of text.split('\n')) {
+              if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                try {
+                  const json = JSON.parse(line.slice(6))
+                  const content = json.choices?.[0]?.delta?.content
+                  if (content) controller.enqueue(new TextEncoder().encode(content))
+                } catch {}
+              }
+            }
+          }
+          controller.close()
+        } catch {
+          controller.close()
+        }
       },
+    })
+
+    return new Response(stream, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     })
   }
 
