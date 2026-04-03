@@ -58,9 +58,12 @@ export default function ModelInstancesPage() {
     try {
       const res = await fetch('/api/qinference/models')
       const data = await res.json()
-      // Filter out stopped/undeployed models — only show active ones
+      // Only show models that are actually active (ready, loading, queued)
       const active = (data.data ?? []).filter(
-        (m: DeployedModel) => m.status !== 'stopped',
+        (m: DeployedModel) =>
+          m.status === 'ready' ||
+          m.status === 'loading' ||
+          m.status === 'queued',
       )
       setModels(active)
       setError(null)

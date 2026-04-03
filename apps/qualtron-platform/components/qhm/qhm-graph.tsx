@@ -40,7 +40,12 @@ const TYPE_COLORS: Record<string, string> = {
   default: '#94a3b8',
 }
 
-export function QHMGraph({ nodes, edges, width = 800, height = 500 }: QHMGraphProps) {
+export function QHMGraph({
+  nodes,
+  edges,
+  width = 800,
+  height = 500,
+}: QHMGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null)
 
   useEffect(() => {
@@ -52,22 +57,31 @@ export function QHMGraph({ nodes, edges, width = 800, height = 500 }: QHMGraphPr
     const g = svg.append('g')
 
     // Zoom
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
+    const zoom = d3
+      .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.3, 3])
       .on('zoom', (event) => g.attr('transform', event.transform))
     svg.call(zoom)
 
     // Force simulation
-    const simNodes = nodes.map((n) => ({ ...n })) as (GraphNode & d3.SimulationNodeDatum)[]
+    const simNodes = nodes.map((n) => ({ ...n })) as (GraphNode &
+      d3.SimulationNodeDatum)[]
     const simEdges = edges.map((e) => ({
       ...e,
       source: e.source,
       target: e.target,
-    })) as (GraphEdge & d3.SimulationLinkDatum<GraphNode & d3.SimulationNodeDatum>)[]
+    })) as (GraphEdge &
+      d3.SimulationLinkDatum<GraphNode & d3.SimulationNodeDatum>)[]
 
     const simulation = d3
       .forceSimulation(simNodes)
-      .force('link', d3.forceLink(simEdges).id((d: any) => d.id).distance(120))
+      .force(
+        'link',
+        d3
+          .forceLink(simEdges)
+          .id((d: any) => d.id)
+          .distance(120),
+      )
       .force('charge', d3.forceManyBody().strength(-300))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius(40))
@@ -100,7 +114,8 @@ export function QHMGraph({ nodes, edges, width = 800, height = 500 }: QHMGraphPr
       .data(simNodes)
       .join('g')
       .call(
-        d3.drag<SVGGElement, GraphNode & d3.SimulationNodeDatum>()
+        d3
+          .drag<SVGGElement, GraphNode & d3.SimulationNodeDatum>()
           .on('start', (event, d: any) => {
             if (!event.active) simulation.alphaTarget(0.3).restart()
             d.fx = d.x
@@ -121,7 +136,7 @@ export function QHMGraph({ nodes, edges, width = 800, height = 500 }: QHMGraphPr
     node
       .append('circle')
       .attr('r', 16)
-      .attr('fill', (d: any) => TYPE_COLORS[d.type] ?? TYPE_COLORS.default)
+      .attr('fill', (d: any) => TYPE_COLORS[d.type ?? ''] ?? TYPE_COLORS.default)
       .attr('stroke', 'var(--background)')
       .attr('stroke-width', 2)
       .attr('cursor', 'grab')
@@ -133,7 +148,10 @@ export function QHMGraph({ nodes, edges, width = 800, height = 500 }: QHMGraphPr
       .attr('text-anchor', 'middle')
       .attr('font-size', 10)
       .attr('fill', 'var(--foreground)')
-      .text((d: any) => d.label.length > 25 ? d.label.slice(0, 22) + '...' : d.label)
+      .text((d: any) => {
+        const label = d.label ?? ''
+        return label.length > 25 ? label.slice(0, 22) + '...' : label
+      })
 
     // Type badge inside circle
     node
@@ -143,7 +161,7 @@ export function QHMGraph({ nodes, edges, width = 800, height = 500 }: QHMGraphPr
       .attr('font-size', 8)
       .attr('font-weight', 'bold')
       .attr('fill', 'white')
-      .text((d: any) => d.type.slice(0, 3).toUpperCase())
+      .text((d: any) => (d.type ?? '').slice(0, 3).toUpperCase())
 
     // Tick
     simulation.on('tick', () => {

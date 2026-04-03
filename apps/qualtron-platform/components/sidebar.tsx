@@ -30,9 +30,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Data',
-    items: [
-      { label: 'QHM', href: '/qhm', icon: '🔬' },
-    ],
+    items: [{ label: 'QHM', href: '/qhm', icon: '🔬' }],
   },
   {
     title: 'Workspace',

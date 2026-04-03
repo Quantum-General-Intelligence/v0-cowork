@@ -70,10 +70,13 @@ async function ingestGitHub(
 
 // ─── Symbolic ingestion via QHP-CORE sym-ingest (deterministic, no LLM) ─────
 
-async function symIngest(source: string, isText: boolean) {
+// CoreNLP crashes on text > ~10K chars. Split on sentence boundaries and merge.
+const CHUNK_LIMIT = 4000
+
+async function symIngestRaw(source: string, isText: boolean) {
   const tmpOut = `/tmp/sym-result-${Date.now()}.json`
   const sourceArg = isText
-    ? `--text "${source.replace(/"/g, '\\"')}"`
+    ? `--text "${source.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`
     : `"${source}"`
   const { stdout, stderr } = await execAsync(
     `${QHP_CLI} sym-ingest ${sourceArg} --tools-url ${SPACY_URL} --corenlp-url ${CORENLP_URL} --output "${tmpOut}"`,
@@ -87,17 +90,169 @@ async function symIngest(source: string, isText: boolean) {
       },
     },
   )
-  // Read the JSON result file
-  let result: unknown = { raw: stdout }
+  let result: SymResult | null = null
   try {
     const { readFileSync } = await import('node:fs')
     const json = readFileSync(tmpOut, 'utf-8')
     result = JSON.parse(json)
-    // Clean up
     const { unlinkSync } = await import('node:fs')
     unlinkSync(tmpOut)
   } catch {}
-  return { tool: 'qhp-sym', mode: 'symbolic', output: result, stderr }
+  return { result, stdout, stderr }
+}
+
+interface SymResult {
+  document_id?: string
+  extraction_mode?: string
+  qlang?: unknown[]
+  predicates?: unknown[]
+  triples?: unknown[]
+  entities?: unknown[]
+  sentences?: unknown[]
+  cnl_results?: unknown[]
+  meta?: { timing_ms?: Record<string, number>; sentence_count?: number; word_count?: number; entity_count?: number; [k: string]: unknown }
+  counts?: Record<string, number>
+}
+
+function mergeSymResults(parts: SymResult[]): SymResult {
+  const merged: SymResult = {
+    document_id: parts[0]?.document_id,
+    extraction_mode: parts[0]?.extraction_mode,
+    qlang: [],
+    predicates: [],
+    triples: [],
+    entities: [],
+    sentences: [],
+    cnl_results: [],
+    meta: { timing_ms: {}, sentence_count: 0, word_count: 0, entity_count: 0 },
+    counts: {},
+  }
+  let sentenceOffset = 0
+  for (const p of parts) {
+    // Offset sentence indices so they don't collide across chunks
+    for (const q of (p.qlang ?? []) as { index: number }[]) {
+      merged.qlang!.push({ ...q, index: q.index + sentenceOffset })
+    }
+    for (const pr of (p.predicates ?? []) as { sentence_index: number }[]) {
+      merged.predicates!.push({ ...pr, sentence_index: pr.sentence_index + sentenceOffset })
+    }
+    for (const t of (p.triples ?? []) as { sentence_index: number }[]) {
+      merged.triples!.push({ ...t, sentence_index: t.sentence_index + sentenceOffset })
+    }
+    for (const e of p.entities ?? []) merged.entities!.push(e)
+    for (const s of (p.sentences ?? []) as { index: number }[]) {
+      merged.sentences!.push({ ...s, index: s.index + sentenceOffset })
+    }
+    for (const c of (p.cnl_results ?? []) as { sentence_index: number }[]) {
+      merged.cnl_results!.push({ ...c, sentence_index: c.sentence_index + sentenceOffset })
+    }
+    sentenceOffset += p.meta?.sentence_count ?? (p.sentences as unknown[] ?? []).length
+    // Sum counts
+    for (const [k, v] of Object.entries(p.counts ?? {})) {
+      merged.counts![k] = (merged.counts![k] ?? 0) + (v as number)
+    }
+    merged.meta!.sentence_count! += p.meta?.sentence_count ?? 0
+    merged.meta!.word_count! += p.meta?.word_count ?? 0
+    merged.meta!.entity_count! += p.meta?.entity_count ?? 0
+  }
+  return merged
+}
+
+/** Split text into chunks at sentence boundaries (. ? ! followed by space/newline) */
+function chunkText(text: string, limit: number): string[] {
+  if (text.length <= limit) return [text]
+  const chunks: string[] = []
+  let start = 0
+  while (start < text.length) {
+    if (start + limit >= text.length) {
+      chunks.push(text.slice(start))
+      break
+    }
+    // Find last sentence boundary within limit
+    const window = text.slice(start, start + limit)
+    const lastBreak = Math.max(
+      window.lastIndexOf('. '),
+      window.lastIndexOf('.\n'),
+      window.lastIndexOf('? '),
+      window.lastIndexOf('! '),
+    )
+    const end = lastBreak > limit * 0.3 ? start + lastBreak + 1 : start + limit
+    chunks.push(text.slice(start, end))
+    start = end
+  }
+  return chunks
+}
+
+async function symIngest(source: string, isText: boolean) {
+  // For file paths, read file size first
+  if (!isText) {
+    const { statSync, readFileSync } = await import('node:fs')
+    const size = statSync(source).size
+    if (size > CHUNK_LIMIT) {
+      // Read file, chunk, and process each
+      const text = readFileSync(source, 'utf-8')
+      return symIngestChunked(text)
+    }
+    const { result, stderr } = await symIngestRaw(source, false)
+    return { tool: 'qhp-sym', mode: 'symbolic', output: result ?? { raw: '' }, stderr }
+  }
+
+  if (source.length > CHUNK_LIMIT) {
+    return symIngestChunked(source)
+  }
+  const { result, stderr } = await symIngestRaw(source, true)
+  return { tool: 'qhp-sym', mode: 'symbolic', output: result ?? { raw: '' }, stderr }
+}
+
+async function symIngestChunked(text: string) {
+  const chunks = chunkText(text, CHUNK_LIMIT)
+  const parts: SymResult[] = []
+  const stderrParts: string[] = []
+  for (const chunk of chunks) {
+    const { result, stderr } = await symIngestRaw(chunk, true)
+    if (result) parts.push(result)
+    if (stderr) stderrParts.push(stderr)
+  }
+  if (parts.length === 0) {
+    return { tool: 'qhp-sym', mode: 'symbolic', output: { raw: '' }, stderr: stderrParts.join('\n') }
+  }
+  const merged = mergeSymResults(parts)
+  return {
+    tool: 'qhp-sym',
+    mode: 'symbolic',
+    output: merged,
+    stderr: stderrParts.join('\n'),
+    chunks: chunks.length,
+    totalChars: text.length,
+  }
+}
+
+// ─── PDF text extraction via opendataloader-pdf (fallback: pdfplumber) ──────
+
+async function extractPdfText(filePath: string): Promise<string | null> {
+  try {
+    await execAsync(
+      `python3 -c "from opendataloader_pdf import convert; convert('${filePath}')"`,
+      { maxBuffer: 50 * 1024 * 1024, timeout: 60000 },
+    )
+    const jsonPath = filePath.replace(/\.[^.]+$/, '.json')
+    const { readFileSync } = await import('node:fs')
+    const json = JSON.parse(readFileSync(jsonPath, 'utf-8'))
+    const text = (json.kids ?? [])
+      .map((k: { content?: string }) => k.content ?? '')
+      .filter(Boolean)
+      .join('\n')
+    if (text.length > 0) return text
+  } catch {}
+  // Fallback: pdfplumber
+  try {
+    const { stdout } = await execAsync(
+      `python3 -c "import pdfplumber; pdf=pdfplumber.open('${filePath}'); print('\\n'.join(p.extract_text() or '' for p in pdf.pages))"`,
+      { maxBuffer: 50 * 1024 * 1024, timeout: 30000 },
+    )
+    if (stdout.trim().length > 0) return stdout.trim()
+  } catch {}
+  return null
 }
 
 // ─── LLM-based ingestion via QHP-CORE ingest (fallback) ─────────────────────
@@ -187,53 +342,28 @@ export async function POST(req: Request) {
           file.name.toLowerCase().endsWith(ext),
         )
 
-        if (tool === 'sym') {
+        // For binary files (PDF etc.), extract text first then sym-ingest
+        if (isBinary) {
+          const pdfText = await extractPdfText(tmpPath)
+          if (pdfText && pdfText.length > 0) {
+            // sym-ingest on extracted text — chunked to avoid CoreNLP crashes
+            const result = await symIngest(pdfText, true)
+            return NextResponse.json({
+              ...result,
+              extractor: 'opendataloader-pdf',
+              totalChars: pdfText.length,
+            })
+          }
+          // Extraction failed — fall through to LLM
+          const result = await ingestLLM(tmpPath, false)
+          return NextResponse.json(result)
+        }
+
+        // Text files — default to sym-ingest (chunked), fall back to LLM
+        if (tool === 'sym' || tool === 'qhp') {
           const result = await symIngest(tmpPath, false)
           return NextResponse.json(result)
         }
-        // For PDFs: extract with opendataloader-pdf (best accuracy), then sym-ingest
-        if (isBinary) {
-          try {
-            // Step 1: opendataloader-pdf extracts structured text from PDF
-            await execAsync(
-              `python3 -c "from opendataloader_pdf import convert; convert('${tmpPath}')"`,
-              { maxBuffer: 50 * 1024 * 1024, timeout: 60000 },
-            )
-            // opendataloader writes JSON next to the PDF
-            const jsonPath = tmpPath.replace(/\.[^.]+$/, '.json')
-            const { readFileSync } = await import('node:fs')
-            let pdfText = ''
-            try {
-              const json = JSON.parse(readFileSync(jsonPath, 'utf-8'))
-              pdfText = (json.kids ?? [])
-                .map((k: { content?: string }) => k.content ?? '')
-                .filter(Boolean)
-                .join('\n')
-            } catch {
-              // Fallback: pdfplumber
-              const { stdout } = await execAsync(
-                `python3 -c "import pdfplumber; pdf=pdfplumber.open('${tmpPath}'); print('\\n'.join(p.extract_text() or '' for p in pdf.pages))"`,
-                { maxBuffer: 50 * 1024 * 1024, timeout: 30000 },
-              )
-              pdfText = stdout.trim()
-            }
-
-            if (pdfText.length > 0) {
-              // Step 2: sym-ingest on extracted text (first 5K to avoid CoreNLP crash)
-              const text = pdfText.slice(0, 5000)
-              const result = await symIngest(text, true)
-              return NextResponse.json({
-                ...result,
-                extractor: 'opendataloader-pdf',
-                totalChars: pdfText.length,
-                processedChars: text.length,
-              })
-            }
-          } catch {
-            // Extraction failed — fall through to LLM
-          }
-        }
-        // Default: LLM mode with GPT-5.2
         const result = await ingestLLM(tmpPath, false)
         return NextResponse.json(result)
       } finally {

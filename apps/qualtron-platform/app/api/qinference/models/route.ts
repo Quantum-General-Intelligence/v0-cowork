@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { listModels, deployModel } from '@/lib/qinference'
+import { listModels, deployModel, type DeployedModel } from '@/lib/qinference'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -8,7 +8,12 @@ export async function GET(request: Request) {
 
   try {
     const data = await listModels({ status, family })
-    return NextResponse.json(data)
+    // Filter out stopped/error models — backend soft-deletes only
+    const activeStatuses = new Set(['ready', 'loading', 'queued'])
+    const filtered = (data.data ?? []).filter((m: DeployedModel) =>
+      activeStatuses.has(m.status),
+    )
+    return NextResponse.json({ ...data, data: filtered, total: filtered.length })
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to list models', detail: String(error) },

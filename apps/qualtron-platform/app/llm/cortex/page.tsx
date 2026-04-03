@@ -568,8 +568,10 @@ function DeploySection({
   const [deployedIds, setDeployedIds] = useState<string[]>([])
 
   const allModelsSet = stages.every((s) => s.model)
+  const canDeploy = allModelsSet && cortexName.trim().length > 0
 
   const handleDeploy = async () => {
+    if (!canDeploy) return
     setDeploying(true)
     setDeployStatus('Deploying 3 models...')
     const ids: string[] = []
@@ -578,7 +580,7 @@ function DeploySection({
       for (let i = 0; i < stages.length; i++) {
         const stage = stages[i]
         if (!stage.model) continue
-        const name = `${cortexName || 'Cortex'} — ${stage.name}`
+        const name = `${cortexName.trim()} — ${stage.name}`
         setDeployStatus(`Deploying ${i + 1}/3: ${stage.name}...`)
 
         const res = await fetch('/api/qinference/models', {
@@ -625,10 +627,14 @@ function DeploySection({
       <div className="flex gap-3">
         <button
           onClick={handleDeploy}
-          disabled={!allModelsSet || deploying}
+          disabled={!canDeploy || deploying}
           className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {deploying ? 'Deploying...' : 'Deploy Spine Cortex'}
+          {deploying
+            ? 'Deploying...'
+            : !cortexName.trim()
+              ? 'Name Required'
+              : 'Deploy Spine Cortex'}
         </button>
         <span className="self-center text-xs text-muted-foreground">
           {stages.filter((s) => s.model).length}/3 models ·{' '}
