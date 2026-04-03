@@ -15,10 +15,7 @@ interface DeployedModel {
   createdAt?: string
 }
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; cls: string }
-> = {
+const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   ready: {
     label: 'Ready',
     cls: 'bg-success/20 text-success',
@@ -81,7 +78,8 @@ export default function ModelInstancesPage() {
               name: `${latest.name} — ${stage.name}`,
               status: 'ready',
               base_family: stage.modelName ?? stage.model,
-              context_tokens: stage.qhmTokenCount > 0 ? stage.qhmTokenCount : 262000,
+              context_tokens:
+                stage.qhmTokenCount > 0 ? stage.qhmTokenCount : 262000,
               vram_gb: 138,
               gpu_count: 2,
               behavior: latest.behavior,
@@ -141,7 +139,9 @@ export default function ModelInstancesPage() {
           )}
           {confirmUndeploy && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-destructive">Remove all deployed models?</span>
+              <span className="text-xs text-destructive">
+                Remove all deployed models?
+              </span>
               <button
                 onClick={handleUndeployAll}
                 disabled={undeploying}

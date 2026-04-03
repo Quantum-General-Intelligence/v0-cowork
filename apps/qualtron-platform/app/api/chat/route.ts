@@ -48,24 +48,45 @@ function getSystemPrompt(behaviorId?: string): string | null {
 
 export async function POST(req: Request) {
   const body = await req.json()
-  const { messages: rawMessages, model = 'qualtron:default', behavior } = body
+  const {
+    messages: rawMessages,
+    model = 'qualtron:default',
+    behavior,
+    qhmContent,
+    cortexName,
+  } = body
 
   const messages = normalizeMessages(rawMessages ?? [])
   if (messages.length === 0) {
     return new Response('No messages provided', { status: 400 })
   }
 
-  // ─── Qualtron models → SGLang direct with CAG system prompt ───────────────
+  // ─── Qualtron models → SGLang direct with CAG system prompt + QHM ─────────
   if (model.startsWith('qualtron:')) {
     const sglangUrl = process.env.SGLANG_URL ?? 'http://127.0.0.1:18000'
 
-    // Inject CAG system prompt if not already present
-    const systemPrompt = getSystemPrompt(behavior)
+    // Build system prompt: behavior template + cortex identity + QHM content
+    const behaviorPrompt = getSystemPrompt(behavior)
     const hasSystem = messages.some((m) => m.role === 'system')
+
+    let systemContent = behaviorPrompt ?? ''
+    if (cortexName) {
+      systemContent += `\n\nYou are "${cortexName}" — a Qualtron Cognitive Model.\n`
+    }
+    if (qhmContent) {
+      systemContent +=
+        '\n\n=== YOUR QHM (Quantum Hypergraph Memory) — KNOWLEDGE FROM INGESTED DOCUMENTS ===\n\n' +
+        qhmContent +
+        '\n\n=== END QHM ===\n\nUse the above QHM as your primary knowledge source. Always cite from it when answering.'
+    }
+
     const finalMessages = hasSystem
       ? messages
-      : systemPrompt
-        ? [{ role: 'system' as const, content: systemPrompt }, ...messages]
+      : systemContent.trim()
+        ? [
+            { role: 'system' as const, content: systemContent },
+            ...messages,
+          ]
         : messages
 
     // Get the actual model name from SGLang

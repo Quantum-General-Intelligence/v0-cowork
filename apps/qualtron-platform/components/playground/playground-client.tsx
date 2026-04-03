@@ -33,22 +33,91 @@ export function PlaygroundClient() {
   const [activePanel, setActivePanel] = useState<'left' | 'right'>('left')
   const [showSidebar, setShowSidebar] = useState(true)
 
-  // CAG behavior from Spine Cortex config
-  const [cagBehavior, setCagBehavior] = useState('general')
+  // Load Spine Cortex config (behavior, name, QHM content)
+  const [cortexConfig, setCortexConfig] = useState<{
+    name: string
+    behavior: string
+    qhmContent: string
+  } | null>(null)
+
   useEffect(() => {
-    const saved = localStorage.getItem('cag-behavior')
-    if (saved) setCagBehavior(saved)
+    try {
+      const configs = JSON.parse(
+        localStorage.getItem('cortex-configs') ?? '[]',
+      )
+      if (configs.length > 0) {
+        const latest = configs[0]
+        // Combine QHM results from all stages into a single context string
+        const qhmParts: string[] = []
+        for (const stage of latest.stages ?? []) {
+          if (stage.qhmResult) {
+            const r = stage.qhmResult
+            // Build readable QHM from structured result
+            if (r.output) {
+              const o = typeof r.output === 'string' ? r.output : r.output
+              if (o.qlang) {
+                qhmParts.push(
+                  `=== QLang Rules (${stage.name}) ===\n` +
+                    (o.qlang as { role?: string; rawText?: string; text?: string }[])
+                      .map(
+                        (q: { role?: string; rawText?: string; text?: string }) =>
+                          `[${q.role ?? 'unknown'}] ${q.rawText ?? q.text ?? ''}`,
+                      )
+                      .join('\n'),
+                )
+              }
+              if (o.entities) {
+                qhmParts.push(
+                  `=== Entities ===\n` +
+                    (o.entities as { text?: string; label?: string }[])
+                      .map((e: { text?: string; label?: string }) => `${e.text} (${e.label})`)
+                      .join(', '),
+                )
+              }
+              if (o.triples) {
+                qhmParts.push(
+                  `=== Relations ===\n` +
+                    (o.triples as { subject?: string; relation?: string; object?: string }[])
+                      .map(
+                        (t: { subject?: string; relation?: string; object?: string }) =>
+                          `${t.subject} → ${t.relation} → ${t.object}`,
+                      )
+                      .join('\n'),
+                )
+              }
+            }
+            // Fallback: raw text
+            if (qhmParts.length === 0 && typeof r === 'string') {
+              qhmParts.push(r)
+            }
+          }
+        }
+        setCortexConfig({
+          name: latest.name ?? 'Cortex',
+          behavior: latest.behavior ?? 'general',
+          qhmContent: qhmParts.join('\n\n'),
+        })
+      }
+    } catch {}
   }, [])
 
-  // Chat transport — route Pi models to Pi agent endpoint
+  const hasCortex = cortexConfig !== null
+  const cagBehavior = cortexConfig?.behavior ?? 'general'
+
+  // Chat transport — route Pi models to Pi agent endpoint, pass QHM content
   const isPiModel = selectedModel.startsWith('pi:')
   const transport = useMemo(
     () =>
       new TextStreamChatTransport({
         api: isPiModel ? '/api/chat/pi' : '/api/chat',
-        body: { model: selectedModel, behavior: cagBehavior },
+        body: {
+          model: selectedModel,
+          behavior: cagBehavior,
+          qhmContent: cortexConfig?.qhmContent ?? '',
+          cortexName: cortexConfig?.name ?? '',
+        },
       }),
-    [selectedModel, isPiModel, cagBehavior],
+    [selectedModel, isPiModel, cagBehavior, cortexConfig],
   )
 
   const { messages, sendMessage, status, error, setMessages } = useChat({
@@ -57,17 +126,6 @@ export function PlaygroundClient() {
 
   const isLoading = status === 'streaming' || status === 'submitted'
 
-  // Check if a cortex is deployed (controls whether Qualtron model shows)
-  const [hasCortex, setHasCortex] = useState(false)
-  useEffect(() => {
-    try {
-      const configs = JSON.parse(
-        localStorage.getItem('cortex-configs') ?? '[]',
-      )
-      setHasCortex(configs.length > 0)
-    } catch {}
-  }, [])
-
   // Fetch models — filter Qualtron unless cortex is deployed
   useEffect(() => {
     fetch('/api/models')
@@ -75,13 +133,20 @@ export function PlaygroundClient() {
       .then((d) => {
         let list = d.models ?? []
         if (!hasCortex) {
-          list = list.filter(
-            (m: ModelOption) => m.provider !== 'qualtron',
+          list = list.filter((m: ModelOption) => m.provider !== 'qualtron')
+        } else {
+          // Rename the Qualtron model to the cortex name
+          list = list.map((m: ModelOption) =>
+            m.provider === 'qualtron'
+              ? { ...m, name: cortexConfig?.name ?? m.name }
+              : m,
           )
         }
         if (list.length) setModels(list)
-        // Auto-select first model
-        if (list.length && !list.find((m: ModelOption) => m.id === selectedModel)) {
+        if (
+          list.length &&
+          !list.find((m: ModelOption) => m.id === selectedModel)
+        ) {
           setSelectedModel(list[0].id)
         }
       })
@@ -192,22 +257,15 @@ export function PlaygroundClient() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {providerType === 'qualtron' && (
-            <div className="hidden items-center gap-1 sm:flex">
-              <span className="text-[10px] text-muted-foreground">CAG:</span>
-              {['0.8B', '2B', '4B', '9B', '122B'].map((s) => (
-                <span
-                  key={s}
-                  className={`rounded px-1 py-0.5 text-[10px] font-mono ${
-                    s === '122B'
-                      ? 'bg-primary/20 text-primary'
-                      : 'bg-accent/20 text-accent'
-                  }`}
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
+          {providerType === 'qualtron' && cortexConfig && (
+            <span className="hidden text-[10px] text-muted-foreground sm:inline">
+              CAG: {cortexConfig.name} ({cortexConfig.behavior})
+            </span>
+          )}
+          {providerType === 'pi' && (
+            <span className="hidden text-[10px] text-warning sm:inline">
+              Pi Agent + Tools
+            </span>
           )}
           <button
             onClick={() => {
@@ -228,14 +286,23 @@ export function PlaygroundClient() {
             <div className="mb-4 text-4xl">⚡</div>
             <h2 className="text-lg font-semibold">Qualtron Playground</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Chat with Qualtron cognitive models (CAG) or Pi agents with tools.
+              {hasCortex
+                ? `Chatting with ${cortexConfig?.name}. Your ingested knowledge is loaded.`
+                : 'Deploy a Spine Cortex first, or use Pi Agent.'}
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              {[
-                'Explain Quantum Hypergraph Memory',
-                'Write a Python web scraper',
-                'Review this code for security issues',
-              ].map((s) => (
+              {(hasCortex
+                ? [
+                    'What are the key obligations in the documents?',
+                    'Summarize the main entities and relationships',
+                    'What rules and conditions were extracted?',
+                  ]
+                : [
+                    'Help me analyze this code',
+                    'Write a Python script',
+                    'Explain how CAG works',
+                  ]
+              ).map((s) => (
                 <button
                   key={s}
                   onClick={() => setInputValue(s)}

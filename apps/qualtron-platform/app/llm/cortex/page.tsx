@@ -577,6 +577,7 @@ function DeploySection({
           model: s.model,
           modelName: catalogModels.find((m) => m.id === s.model)?.name,
           qhmTokenCount: s.qhmTokenCount,
+          qhmResult: s.qhmResult,
         })),
         createdAt: new Date().toISOString(),
       }
