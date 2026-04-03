@@ -260,7 +260,9 @@ export default function SpineCortexPage() {
               >
                 <span>{t.icon}</span>
                 <span>{t.name}</span>
-                {selectedBehavior === t.id && <span className="text-primary">✓</span>}
+                {selectedBehavior === t.id && (
+                  <span className="text-primary">✓</span>
+                )}
               </button>
             ))}
           </div>
@@ -674,10 +676,25 @@ function QHPResultsViewer({ result }: { result: unknown }) {
   if (!result || typeof result !== 'object') return null
 
   const r = result as Record<string, unknown>
-  const classification = r.classification ?? r.state ?? null
+  const extractionMode = r.extraction_mode as string | undefined
+  const classification = r.classification ?? r.state ?? r.heuristic_content_type ?? null
+  // Handle both LLM format (rules_list) and sym format (qlang)
+  const qlangItems = (r.qlang ?? []) as { role: string; text: string }[]
   const rulesList = (r.rules_list ?? []) as { type: string; text: string }[]
+  const allRules = rulesList.length > 0
+    ? rulesList
+    : qlangItems.map((q) => ({ type: q.role, text: q.text.replace(/^\w+:\s*/, '') }))
+  // Role distribution
   const qlangRoles = r.qlang_roles as Record<string, number> | undefined
-  const timing = r.timing_ms as number | undefined
+  const roleCounts = qlangRoles ?? allRules.reduce<Record<string, number>>((acc, rule) => {
+    acc[rule.type] = (acc[rule.type] ?? 0) + 1
+    return acc
+  }, {})
+  // Timing
+  const meta = r.meta as Record<string, unknown> | undefined
+  const timingDetail = (meta?.timing_ms ?? r.timing_detail) as Record<string, number> | undefined
+  const totalTiming = r.timing_ms as number | undefined
+    ?? (timingDetail ? Object.values(timingDetail).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0) : undefined)
 
   return (
     <div className="mb-2 rounded border border-border bg-background">
@@ -686,10 +703,11 @@ function QHPResultsViewer({ result }: { result: unknown }) {
         className="flex w-full items-center justify-between px-2 py-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
       >
         <span>
-          {`QHP Results: ${rulesList.length} rules`}
+          {`QHP: ${allRules.length} rules`}
+          {extractionMode ? ` · ${extractionMode}` : ''}
           {classification ? ` · ${String(classification)}` : ''}
-          {typeof timing === 'number'
-            ? ` · ${(timing / 1000).toFixed(1)}s`
+          {typeof totalTiming === 'number'
+            ? ` · ${totalTiming < 1000 ? `${totalTiming}ms` : `${(totalTiming / 1000).toFixed(1)}s`}`
             : ''}
         </span>
         <span>{expanded ? '▾' : '▸'}</span>
@@ -697,13 +715,13 @@ function QHPResultsViewer({ result }: { result: unknown }) {
       {expanded && (
         <div className="border-t border-border px-2 py-2 space-y-2">
           {/* QLang role distribution */}
-          {qlangRoles && Object.keys(qlangRoles).length > 0 && (
+          {Object.keys(roleCounts).length > 0 && (
             <div>
               <div className="text-[10px] font-medium text-muted-foreground mb-1">
                 Rule Types
               </div>
               <div className="flex flex-wrap gap-1">
-                {Object.entries(qlangRoles).map(([role, count]) => (
+                {Object.entries(roleCounts).map(([role, count]) => (
                   <span
                     key={role}
                     className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-mono text-primary"
@@ -715,13 +733,13 @@ function QHPResultsViewer({ result }: { result: unknown }) {
             </div>
           )}
           {/* Extracted rules */}
-          {rulesList.length > 0 && (
+          {allRules.length > 0 && (
             <div>
               <div className="text-[10px] font-medium text-muted-foreground mb-1">
                 Extracted Rules
               </div>
               <div className="space-y-1 max-h-40 overflow-y-auto">
-                {rulesList.map((rule, i) => (
+                {allRules.map((rule, i) => (
                   <div key={i} className="flex gap-1.5 text-[10px]">
                     <span
                       className={`shrink-0 rounded px-1 py-0.5 font-mono ${

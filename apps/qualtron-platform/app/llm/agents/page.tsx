@@ -105,7 +105,9 @@ export default function ModelInstancesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Cognitive Models</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Cognitive Models
+          </h1>
           <p className="text-muted-foreground">
             Active Qualtron cognitive models deployed on GPU.
             {models.length > 0 && (

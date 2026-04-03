@@ -21,20 +21,19 @@ const execAsync = promisify(exec)
 
 const QHP_CLI = 'tsx /workspace/QHP-CORE/packages/cli/index.ts'
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? ''
+const SPACY_URL = 'http://localhost:8100'
+const CORENLP_URL = 'http://localhost:9000'
 
-// QHP-CORE requires these env vars even for extraction-only mode
+// QHP-CORE env vars for LLM-based ingest (fallback)
 function qhpEnv(): string {
   const vars: string[] = []
-  // Route OpenAI calls through OpenRouter using the OpenRouter API key
   const openaiKey =
     process.env.OPENAI_API_KEY ?? process.env.OPENROUTER_API_KEY ?? ''
   vars.push(`OPENAI_API_KEY="${openaiKey}"`)
-  // If no native OpenAI key, use OpenRouter as the base URL
   if (!process.env.OPENAI_API_KEY && process.env.OPENROUTER_API_KEY) {
     vars.push('OPENAI_BASE_URL="https://openrouter.ai/api/v1"')
     vars.push('LLM_MODEL="openai/gpt-4o"')
   }
-  // QHP needs Supabase vars to load (even if extraction-only)
   vars.push(
     `SUPABASE_URL="${process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co'}"`,
   )
@@ -68,26 +67,38 @@ async function ingestGitHub(
   }
 }
 
-// ─── URL ingestion via QHP-CORE ──────────────────────────────────────────────
+// ─── Symbolic ingestion via QHP-CORE sym-ingest (deterministic, no LLM) ─────
 
-async function ingestURL(url: string, options?: { heuristic?: boolean }) {
-  const hFlag = options?.heuristic ? '--heuristic' : ''
+async function symIngest(source: string, isText: boolean) {
+  const tmpOut = `/tmp/sym-result-${Date.now()}.json`
+  const sourceArg = isText ? `--text "${source.replace(/"/g, '\\"')}"` : `"${source}"`
   const { stdout, stderr } = await execAsync(
-    `${qhpEnv()} ${QHP_CLI} ingest "${url}" --json ${hFlag}`,
-    { maxBuffer: 10 * 1024 * 1024, timeout: 180000, shell: '/bin/bash' },
+    `${QHP_CLI} sym-ingest ${sourceArg} --tools-url ${SPACY_URL} --corenlp-url ${CORENLP_URL} --output "${tmpOut}"`,
+    { maxBuffer: 10 * 1024 * 1024, timeout: 60000 },
   )
-  return { tool: 'qhp-core', output: parseJSON(stdout), stderr }
+  // Read the JSON result file
+  let result: unknown = { raw: stdout }
+  try {
+    const { readFileSync } = await import('node:fs')
+    const json = readFileSync(tmpOut, 'utf-8')
+    result = JSON.parse(json)
+    // Clean up
+    const { unlinkSync } = await import('node:fs')
+    unlinkSync(tmpOut)
+  } catch {}
+  return { tool: 'qhp-sym', mode: 'symbolic', output: result, stderr }
 }
 
-// ─── File ingestion via QHP-CORE ─────────────────────────────────────────────
+// ─── LLM-based ingestion via QHP-CORE ingest (fallback) ─────────────────────
 
-async function ingestFile(filePath: string, options?: { heuristic?: boolean }) {
+async function ingestLLM(source: string, isText: boolean, options?: { heuristic?: boolean }) {
   const hFlag = options?.heuristic ? '--heuristic' : ''
+  const sourceArg = isText ? `--text "${source.replace(/"/g, '\\"')}"` : `"${source}"`
   const { stdout, stderr } = await execAsync(
-    `${qhpEnv()} ${QHP_CLI} ingest "${filePath}" --json ${hFlag}`,
+    `${qhpEnv()} ${QHP_CLI} ingest ${sourceArg} --json ${hFlag}`,
     { maxBuffer: 10 * 1024 * 1024, timeout: 180000, shell: '/bin/bash' },
   )
-  return { tool: 'qhp-core', output: parseJSON(stdout), stderr }
+  return { tool: 'qhp-core', mode: 'llm', output: parseJSON(stdout), stderr }
 }
 
 // ─── Code indexing via CodeGraphContext ───────────────────────────────────────
@@ -147,7 +158,12 @@ export async function POST(req: Request) {
           const result = await indexCode(tmpDir)
           return NextResponse.json(result)
         }
-        const result = await ingestFile(tmpPath, { heuristic })
+        if (tool === 'llm') {
+          const result = await ingestLLM(tmpPath, false, { heuristic })
+          return NextResponse.json(result)
+        }
+        // Default: symbolic (deterministic, no LLM)
+        const result = await symIngest(tmpPath, false)
         return NextResponse.json(result)
       } finally {
         await rm(tmpDir, { recursive: true, force: true }).catch(() => {})
@@ -181,6 +197,8 @@ export async function POST(req: Request) {
 
     let result: unknown
 
+    const useLLM = (options as { mode?: string })?.mode === 'llm'
+
     switch (method) {
       case 'github':
         result = await ingestGitHub(
@@ -190,20 +208,22 @@ export async function POST(req: Request) {
         break
 
       case 'url':
-        result = await ingestURL(source, options as { heuristic?: boolean })
+        // URLs: use sym-ingest by default, LLM if requested
+        if (useLLM) {
+          result = await ingestLLM(source, false)
+        } else {
+          result = await symIngest(source, false)
+        }
         break
 
-      case 'text': {
-        const hFlag = (options as { heuristic?: boolean })?.heuristic
-          ? '--heuristic'
-          : ''
-        const { stdout, stderr } = await execAsync(
-          `${qhpEnv()} ${QHP_CLI} ingest --text "${source.replace(/"/g, '\\"')}" --json ${hFlag}`,
-          { maxBuffer: 10 * 1024 * 1024, timeout: 180000, shell: '/bin/bash' },
-        )
-        result = { tool: 'qhp-core', output: parseJSON(stdout), stderr }
+      case 'text':
+        // Text: use sym-ingest by default (deterministic), LLM if requested
+        if (useLLM) {
+          result = await ingestLLM(source, true, { heuristic: (options as { heuristic?: boolean })?.heuristic })
+        } else {
+          result = await symIngest(source, true)
+        }
         break
-      }
 
       case 'code-index':
         result = await indexCode(source)
