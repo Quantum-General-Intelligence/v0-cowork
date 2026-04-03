@@ -161,7 +161,7 @@ export default function CreateCAGModelPage() {
           href="/llm/agents"
           className="text-muted-foreground hover:text-foreground"
         >
-          ← Model Instances
+          ← Cognitive Models
         </Link>
         <span className="text-muted-foreground">/</span>
         <h1 className="text-2xl font-bold tracking-tight">Create CAG Model</h1>
@@ -251,7 +251,7 @@ export default function CreateCAGModelPage() {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium">
-              Agent Behavior
+              Cognitive Model Behavior
             </label>
             <p className="mb-3 text-xs text-muted-foreground">
               Choose how this model behaves with its CAG data. The system prompt
@@ -266,15 +266,18 @@ export default function CreateCAGModelPage() {
                     setSelectedTemplate(t.id)
                     setSystemPrompt(t.prompt)
                   }}
-                  className={`rounded-lg border p-3 text-left transition-colors ${
+                  className={`rounded-lg border-2 p-3 text-left transition-colors ${
                     selectedTemplate === t.id
-                      ? 'border-primary bg-primary/5'
+                      ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
                       : 'border-border hover:border-primary/30'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-lg">{t.icon}</span>
                     <span className="text-xs font-semibold">{t.name}</span>
+                    {selectedTemplate === t.id && (
+                      <span className="ml-auto text-xs text-primary">✓</span>
+                    )}
                   </div>
                   <p className="mt-1 text-[10px] text-muted-foreground">
                     {t.description}
@@ -415,7 +418,7 @@ export default function CreateCAGModelPage() {
               href="/llm/agents"
               className="rounded-md bg-muted px-4 py-2 text-sm text-muted-foreground"
             >
-              View Instances
+              View Models
             </Link>
           </div>
         </div>

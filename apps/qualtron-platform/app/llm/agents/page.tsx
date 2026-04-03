@@ -58,7 +58,11 @@ export default function ModelInstancesPage() {
     try {
       const res = await fetch('/api/qinference/models')
       const data = await res.json()
-      setModels(data.data ?? [])
+      // Filter out stopped/undeployed models — only show active ones
+      const active = (data.data ?? []).filter(
+        (m: DeployedModel) => m.status !== 'stopped',
+      )
+      setModels(active)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load')
@@ -101,9 +105,9 @@ export default function ModelInstancesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Model Instances</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Cognitive Models</h1>
           <p className="text-muted-foreground">
-            Deployed Qualtron models on GPU.
+            Active Qualtron cognitive models deployed on GPU.
             {models.length > 0 && (
               <span className="ml-1 text-xs text-muted-foreground/60">
                 (auto-refreshes)

@@ -66,7 +66,7 @@ export default function ModelInstanceDetailPage({
           href="/llm/agents"
           className="text-muted-foreground hover:text-foreground"
         >
-          ← Model Instances
+          ← Cognitive Models
         </Link>
         <span className="text-muted-foreground">/</span>
         <h1 className="text-2xl font-bold tracking-tight">Qualtron-9B-600K</h1>

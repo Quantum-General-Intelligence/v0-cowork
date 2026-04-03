@@ -83,6 +83,7 @@ export default function SpineCortexPage() {
     DEFAULT_STAGES.map((s) => ({ ...s })),
   )
   const [cortexName, setCortexName] = useState('')
+  const [selectedBehavior, setSelectedBehavior] = useState('general')
   const [catalogModels, setCatalogModels] = useState<CatalogModel[]>([])
   const [activeStageId, setActiveStageId] = useState<string | null>(null)
   const [uploadMethod, setUploadMethod] = useState<UploadMethod>('file')
@@ -243,20 +244,23 @@ export default function SpineCortexPage() {
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium">
-            Agent Behavior
+            Cognitive Model Behavior
           </label>
           <div className="flex flex-wrap gap-1.5">
             {CAG_PROMPT_TEMPLATES.map((t) => (
               <button
                 key={t.id}
-                onClick={() => {
-                  /* stored in deploy config */
-                }}
-                className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] transition-colors hover:border-primary/50"
+                onClick={() => setSelectedBehavior(t.id)}
+                className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] transition-colors ${
+                  selectedBehavior === t.id
+                    ? 'border-primary bg-primary/10 text-foreground'
+                    : 'border-border text-muted-foreground hover:border-primary/50'
+                }`}
                 title={t.description}
               >
                 <span>{t.icon}</span>
                 <span>{t.name}</span>
+                {selectedBehavior === t.id && <span className="text-primary">✓</span>}
               </button>
             ))}
           </div>
@@ -656,7 +660,7 @@ function DeploySection({
             href="/llm/agents"
             className="rounded-md bg-muted px-4 py-2 text-sm text-muted-foreground"
           >
-            View Instances
+            View Models
           </Link>
         </div>
       )}

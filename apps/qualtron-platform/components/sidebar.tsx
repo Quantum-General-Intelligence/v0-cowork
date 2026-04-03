@@ -23,7 +23,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Models',
     items: [
-      { label: 'Instances', href: '/llm/agents', icon: '🧠' },
+      { label: 'Cognitive Models', href: '/llm/agents', icon: '🧠' },
       { label: 'Spine Cortex', href: '/llm/cortex', icon: '🧬' },
       { label: 'GPU Deploy', href: '/llm/deploy', icon: '🚀' },
     ],
@@ -56,9 +56,7 @@ export function Navbar() {
       <div className="flex flex-1 items-center gap-1 overflow-x-auto">
         {NAV_SECTIONS.map((section, si) => (
           <div key={section.title} className="flex items-center">
-            {si > 0 && (
-              <div className="mx-2 h-4 w-px bg-sidebar-border" />
-            )}
+            {si > 0 && <div className="mx-2 h-4 w-px bg-sidebar-border" />}
             {section.items.map((item) => {
               const isActive =
                 item.href === '/'
