@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 
@@ -26,6 +26,14 @@ const DEFAULT_SYSTEM_PROMPT =
   'You are a helpful assistant. Answer questions based on the provided knowledge base. If the answer is not in the knowledge base, say so clearly.'
 
 export default function RegisterAgentPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-2xl p-8 text-center text-muted-foreground">Loading...</div>}>
+      <RegisterAgentContent />
+    </Suspense>
+  )
+}
+
+function RegisterAgentContent() {
   const searchParams = useSearchParams()
   const preselectedModel = searchParams.get('model') ?? ''
 

@@ -42,9 +42,7 @@ export function PlaygroundClient() {
 
   useEffect(() => {
     try {
-      const configs = JSON.parse(
-        localStorage.getItem('cortex-configs') ?? '[]',
-      )
+      const configs = JSON.parse(localStorage.getItem('cortex-configs') ?? '[]')
       if (configs.length > 0) {
         const latest = configs[0]
         // Combine QHM results from all stages into a single context string
@@ -58,9 +56,19 @@ export function PlaygroundClient() {
               if (o.qlang) {
                 qhmParts.push(
                   `=== QLang Rules (${stage.name}) ===\n` +
-                    (o.qlang as { role?: string; rawText?: string; text?: string }[])
+                    (
+                      o.qlang as {
+                        role?: string
+                        rawText?: string
+                        text?: string
+                      }[]
+                    )
                       .map(
-                        (q: { role?: string; rawText?: string; text?: string }) =>
+                        (q: {
+                          role?: string
+                          rawText?: string
+                          text?: string
+                        }) =>
                           `[${q.role ?? 'unknown'}] ${q.rawText ?? q.text ?? ''}`,
                       )
                       .join('\n'),
@@ -70,17 +78,29 @@ export function PlaygroundClient() {
                 qhmParts.push(
                   `=== Entities ===\n` +
                     (o.entities as { text?: string; label?: string }[])
-                      .map((e: { text?: string; label?: string }) => `${e.text} (${e.label})`)
+                      .map(
+                        (e: { text?: string; label?: string }) =>
+                          `${e.text} (${e.label})`,
+                      )
                       .join(', '),
                 )
               }
               if (o.triples) {
                 qhmParts.push(
                   `=== Relations ===\n` +
-                    (o.triples as { subject?: string; relation?: string; object?: string }[])
+                    (
+                      o.triples as {
+                        subject?: string
+                        relation?: string
+                        object?: string
+                      }[]
+                    )
                       .map(
-                        (t: { subject?: string; relation?: string; object?: string }) =>
-                          `${t.subject} → ${t.relation} → ${t.object}`,
+                        (t: {
+                          subject?: string
+                          relation?: string
+                          object?: string
+                        }) => `${t.subject} → ${t.relation} → ${t.object}`,
                       )
                       .join('\n'),
                 )

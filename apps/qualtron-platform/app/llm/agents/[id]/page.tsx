@@ -37,11 +37,10 @@ for await (const chunk of stream) {
   process.stdout.write(chunk.choices[0]?.delta?.content || "");
 }`,
 
-  curl: (modelId: string) => `curl http://localhost:8000/v1/chat/completions \\
+  curl: (modelId: string) => `curl http://localhost:8000/v1/agents/${modelId}/chat \\
   -H "Authorization: Bearer cag_YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "${modelId}",
     "messages": [{"role": "user", "content": "What are the payment terms?"}],
     "stream": true
   }'`,

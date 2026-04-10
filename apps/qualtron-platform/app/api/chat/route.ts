@@ -83,10 +83,7 @@ export async function POST(req: Request) {
     const finalMessages = hasSystem
       ? messages
       : systemContent.trim()
-        ? [
-            { role: 'system' as const, content: systemContent },
-            ...messages,
-          ]
+        ? [{ role: 'system' as const, content: systemContent }, ...messages]
         : messages
 
     // Get the actual model name from SGLang

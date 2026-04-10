@@ -35,7 +35,6 @@ export interface DeployedModel {
   name: string
   status: 'queued' | 'loading' | 'ready' | 'error' | 'stopped'
   endpoint: string
-  gpustack_model_id: string
   base_model: string
   base_family: string
   context_tokens: number
